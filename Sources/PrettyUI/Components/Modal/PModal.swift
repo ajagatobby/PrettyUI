@@ -10,6 +10,14 @@
 
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
+#if canImport(AppKit)
+import AppKit
+#endif
+
 // MARK: - Modal Dismiss Environment Key
 
 /// Wrapper class to hold the dismiss action (allows passing MainActor function through environment)
@@ -155,12 +163,20 @@ public struct PModalModifier<ModalContent: View>: ViewModifier {
         content
             .overlay {
                 if isShowingOverlay {
-                    PModalOverlay(
-                        isPresented: $isPresented,
-                        isShowing: $isShowingOverlay,
-                        config: config,
-                        content: modalContent
-                    )
+                    GeometryReader { geo in
+                        PModalOverlay(
+                            isPresented: $isPresented,
+                            isShowing: $isShowingOverlay,
+                            config: config,
+                            content: modalContent
+                        )
+                        .frame(width: screenSize.width, height: screenSize.height)
+                        .position(
+                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
+                            y: screenSize.height / 2 - geo.frame(in: .global).minY
+                        )
+                        .ignoresSafeArea()
+                    }
                 }
             }
             .onChange(of: isPresented) { newValue in
@@ -171,6 +187,16 @@ public struct PModalModifier<ModalContent: View>: ViewModifier {
                 // When isPresented becomes false, PModalOverlay handles the animated dismiss
                 // and will set isShowingOverlay = false after animation completes
             }
+    }
+    
+    private var screenSize: CGSize {
+        #if os(iOS) || os(tvOS)
+        return UIScreen.main.bounds.size
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
+        #else
+        return .zero
+        #endif
     }
 }
 
@@ -1019,7 +1045,7 @@ struct PModalPreviewContainer: View {
     @State private var showAlertModal = false
     
     var body: some View {
-        NavigationStack {
+        VStack {
             List {
                 Section("Modal Examples") {
                     Button("Basic Modal") {
@@ -1054,7 +1080,6 @@ struct PModalPreviewContainer: View {
                     .font(.system(.caption, design: .monospaced))
                 }
             }
-            .navigationTitle("PModal")
         }
         // Basic Modal
         .pModal(isPresented: $showBasicModal) {
