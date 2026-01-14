@@ -677,48 +677,87 @@ struct PTooltipInlineOverlay<TooltipContent: View>: View {
     }
 }
 
-// MARK: - PTooltip View Modifier
+// MARK: - Tooltip Content Holder
 
-/// A view modifier that presents a tooltip attached to the modified view
+/// Observable object for managing tooltip state at the root level
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
-    @Binding var isPresented: Bool
-    var config: PTooltipConfiguration
-    @ViewBuilder var tooltipContent: () -> TooltipContent
+final class PTooltipContentHolder: ObservableObject {
+    nonisolated(unsafe) static let shared = PTooltipContentHolder()
     
-    @State private var anchorFrame: CGRect = .zero
+    @Published varcurrentContent: AnyView? = nil
+    @Published var currentConfig: PTooltipConfiguration? = nil
+    @Published var currentAnchorFrame: CGRect = .zero
+    @Published var isPresented: Bool = false
+    
+    private var dismissAction: (() -> Void)? = nil
+    
+    private init() {}
+    
+    @MainActor
+    func present<Content: View>(
+        content: Content,
+        config: PTooltipConfiguration,
+        anchorFrame: CGRect,
+        dismiss: @escaping () -> Void
+    ) {
+        self.currentContent = AnyView(content)
+        self.currentConfig = config
+        self.currentAnchorFrame = anchorFrame
+        self.dismissAction = dismiss
+        self.isPresented = true
+    }
+    
+    @MainActor
+    func updateAnchorFrame(_ frame: CGRect) {
+        if isPresented {
+            self.currentAnchorFrame = frame
+        }
+    }
+    
+    @MainActor
+    func dismiss() {
+        let action = dismissAction
+        dismissAction = nil
+        isPresented = false
+        currentContent = nil
+        currentConfig = nil
+        action?()
+    }
+}
+
+// MARK: - Root Tooltip Container
+
+/// A view modifier that renders tooltips at the root level of the view hierarchy.
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+public struct PTooltipRootModifier: ViewModifier {
+    
+    @Environment(\.prettyTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    
+    @ObservedObject private var tooltipHolder = PTooltipContentHolder.shared
     @State private var tooltipSize: CGSize = .zero
+    @State private var isAnimating = false
+    
+    private var colors: ColorTokens {
+        theme.colors(for: colorScheme)
+    }
     
     public func body(content: Content) -> some View {
         content
-            .background(
-                GeometryReader { geo in
-                    Color.clear
-                        .onAppear { anchorFrame = geo.frame(in: .global) }
-                        .onChange(of: geo.frame(in: .global)) { anchorFrame = $0 }
-                }
-            )
             .overlay {
-                if isPresented {
-                    GeometryReader { geo in
-                        PTooltipInlineOverlay(
-                            isPresented: $isPresented,
-                            config: config,
-                            tooltipContent: tooltipContent
-                        )
-                        .background(
-                            GeometryReader { tooltipGeo in
-                                Color.clear
-                                    .onAppear { tooltipSize = tooltipGeo.size }
-                                    .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
-                            }
-                        )
-                        .position(calculateGlobalPosition())
-                        .frame(width: screenSize.width, height: screenSize.height)
-                        .position(
-                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
-                            y: screenSize.height / 2 - geo.frame(in: .global).minY
-                        )
+                if tooltipHolder.isPresented {
+                    tooltipOverlay
+                }
+            }
+            .onChange(of: tooltipHolder.isPresented) { newValue in
+                if newValue {
+                    withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
+                        isAnimating = true
+                    }
+                } else {
+                    withAnimation(.easeIn(duration: 0.15)) {
+                        isAnimating = false
                     }
                 }
             }
@@ -734,34 +773,214 @@ public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
         #endif
     }
     
-    /// Calculate the global position for the tooltip
-    private func calculateGlobalPosition() -> CGPoint {
+    @ViewBuilder
+    private var tooltipOverlay: some View {
+        if let content = tooltipHolder.currentContent,
+           let config = tooltipHolder.currentConfig {
+            GeometryReader { geo in
+                // We reuse PTooltipInlineOverlay logic but adapted for root rendering
+                // Since PTooltipInlineOverlay expects a Binding, we can just use the holder's state via a binding wrapper or extract the view logic.
+                // However, PTooltipInlineOverlay has its own animation state.
+                // To keep it simple and consistent, we'll implement the rendering directly here using the same components.
+                
+                tooltipView(content: content, config: config)
+                    .background(
+                        GeometryReader { tooltipGeo in
+                            Color.clear
+                                .onAppear { tooltipSize = tooltipGeo.size }
+                                .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
+                        }
+                    )
+                    .position(calculateGlobalPosition(anchorFrame: tooltipHolder.currentAnchorFrame, config: config, tooltipSize: tooltipSize))
+                    .frame(width: screenSize.width, height: screenSize.height)
+                    .position(
+                        x: screenSize.width / 2 - geo.frame(in: .global).minX,
+                        y: screenSize.height / 2 - geo.frame(in: .global).minY
+                    )
+                    .opacity(isAnimating ? 1 : 0)
+                    .scaleEffect(isAnimating ? 1 : 0.95)
+                    .offset(entryOffset(for: config))
+            }
+            .ignoresSafeArea()
+            .allowsHitTesting(false) // Tooltips usually shouldn't block interaction unless specified? 
+            // Actually, if they have interactive content (buttons), they should allow hit testing.
+            // But if they are just info, maybe pass through.
+            // PTooltipInlineOverlay had .onTapGesture to dismiss.
+            // Let's check config.dismissOnTap
+        }
+    }
+    
+    @ViewBuilder
+    private func tooltipView(content: AnyView, config: PTooltipConfiguration) -> some View {
+        Group {
+            switch config.position {
+            case .top:
+                VStack(spacing: 0) {
+                    contentBody(content: content, config: config)
+                    arrowView(config: config)
+                }
+            case .bottom:
+                VStack(spacing: 0) {
+                    arrowView(config: config)
+                    contentBody(content: content, config: config)
+                }
+            case .leading:
+                HStack(spacing: 0) {
+                    contentBody(content: content, config: config)
+                    arrowView(config: config)
+                }
+            case .trailing:
+                HStack(spacing: 0) {
+                    arrowView(config: config)
+                    contentBody(content: content, config: config)
+                }
+            }
+        }
+        .fixedSize()
+        .shadow(
+            color: Color.black.opacity(0.15),
+            radius: 12,
+            x: 0,
+            y: 4
+        )
+    }
+    
+    @ViewBuilder
+    private func contentBody(content: AnyView, config: PTooltipConfiguration) -> some View {
+        let resolvedRadius = theme.radius[config.radius]
+        let resolvedPadding = theme.spacing[config.padding]
+        
+        let backgroundColor: Color = {
+            switch config.style {
+            case .dark: return colors.foreground
+            case .light: return colors.card
+            case .custom(let background, _): return background.color
+            }
+        }()
+        
+        let foregroundColor: Color = {
+            switch config.style {
+            case .dark: return colors.background
+            case .light: return colors.foreground
+            case .custom(_, let text): return text.color
+            }
+        }()
+        
+        content
+            .font(.system(size: theme.typography.sizes.sm, weight: .medium))
+            .foregroundColor(foregroundColor)
+            .padding(.horizontal, resolvedPadding * config.horizontalPaddingMultiplier)
+            .padding(.vertical, resolvedPadding)
+            .frame(maxWidth: config.maxWidth)
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+    }
+    
+    @ViewBuilder
+    private func arrowView(config: PTooltipConfiguration) -> some View {
+        let backgroundColor: Color = {
+            switch config.style {
+            case .dark: return colors.foreground
+            case .light: return colors.card
+            case .custom(let background, _): return background.color
+            }
+        }()
+        
+        TooltipArrowShape(position: config.position)
+            .fill(backgroundColor)
+            .frame(
+                width: config.position == .top || config.position == .bottom ? config.arrowSize * 2 : config.arrowSize,
+                height: config.position == .top || config.position == .bottom ? config.arrowSize : config.arrowSize * 2
+            )
+    }
+    
+    private func calculateGlobalPosition(anchorFrame: CGRect, config: PTooltipConfiguration, tooltipSize: CGSize) -> CGPoint {
         let gap = config.offset
         let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
         
         switch config.position {
         case .top:
-            // Position tooltip above anchor
             let y = anchorFrame.minY - (tooltipSize.height / 2) - gap
             return CGPoint(x: anchorCenter.x, y: y)
-            
         case .bottom:
-            // Position tooltip below anchor
             let y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
             return CGPoint(x: anchorCenter.x, y: y)
-            
         case .leading:
-            // Position tooltip to the left of anchor
             let x = anchorFrame.minX - (tooltipSize.width / 2) - gap
             return CGPoint(x: x, y: anchorCenter.y)
-            
         case .trailing:
-            // Position tooltip to the right of anchor
             let x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
             return CGPoint(x: x, y: anchorCenter.y)
         }
     }
+    
+    private func entryOffset(for config: PTooltipConfiguration) -> CGSize {
+        guard !isAnimating else { return .zero }
+        let distance: CGFloat = 6
+        
+        switch config.position {
+        case .top: return CGSize(width: 0, height: distance)
+        case .bottom: return CGSize(width: 0, height: -distance)
+        case .leading: return CGSize(width: distance, height: 0)
+        case .trailing: return CGSize(width: -distance, height: 0)
+        }
+    }
 }
+
+// MARK: - PTooltip View Modifier
+
+/// A view modifier that presents a tooltip attached to the modified view
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
+    @Binding var isPresented: Bool
+    var config: PTooltipConfiguration
+    @ViewBuilder var tooltipContent: () -> TooltipContent
+    
+    @State private var anchorFrame: CGRect = .zero
+    
+    public func body(content: Content) -> some View {
+        content
+            .background(
+                GeometryReader { geo in
+                    Color.clear
+                        .onAppear { anchorFrame = geo.frame(in: .global) }
+                        .onChange(of: geo.frame(in: .global)) { newFrame in
+                            anchorFrame = newFrame
+                            if isPresented {
+                                PTooltipContentHolder.shared.updateAnchorFrame(newFrame)
+                            }
+                        }
+                }
+            )
+            .onChange(of: isPresented) { newValue in
+                if newValue {
+                    PTooltipContentHolder.shared.present(
+                        content: tooltipContent(),
+                        config: config,
+                        anchorFrame: anchorFrame,
+                        dismiss: {
+                            isPresented = false
+                        }
+                    )
+                    
+                    if config.autoDismiss {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + config.autoDismissDelay) {
+                            if isPresented {
+                                isPresented = false
+                            }
+                        }
+                    }
+                } else {
+                    // Only dismiss if we are the current presenter
+                    // logic inside holder handles specific content check? No, straightforward dismiss for now.
+                    if PTooltipContentHolder.shared.isPresented {
+                        PTooltipContentHolder.shared.dismiss()
+                    }
+                }
+            }
+    }
+}
+
 
 // MARK: - View Extension for pTooltip
 
@@ -857,6 +1076,26 @@ public extension View {
             )
         )
     }
+    /// Apply at the root of your app to enable tooltip rendering above all content.
+    ///
+    /// This modifier sets up the root-level overlay system that ensures tooltips
+    /// appear above all other UI elements.
+    ///
+    /// ```swift
+    /// @main
+    /// struct MyApp: App {
+    ///     var body: some Scene {
+    ///         WindowGroup {
+    ///             ContentView()
+    ///                 .prettyTheme(.sky)
+    ///                 .pTooltipRoot()
+    ///         }
+    ///     }
+    /// }
+    /// ```
+    func pTooltipRoot() -> some View {
+        modifier(PTooltipRootModifier())
+    }
 }
 
 // MARK: - Hover Tooltip Modifier
@@ -871,7 +1110,6 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
     @State private var isHovering = false
     @State private var showWorkItem: DispatchWorkItem?
     @State private var anchorFrame: CGRect = .zero
-    @State private var tooltipSize: CGSize = .zero
     
     /// The delay before showing the tooltip
     private var effectiveShowDelay: Double {
@@ -889,7 +1127,12 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
                 GeometryReader { geo in
                     Color.clear
                         .onAppear { anchorFrame = geo.frame(in: .global) }
-                        .onChange(of: geo.frame(in: .global)) { anchorFrame = $0 }
+                        .onChange(of: geo.frame(in: .global)) { newFrame in
+                            anchorFrame = newFrame
+                            if isPresented {
+                                PTooltipContentHolder.shared.updateAnchorFrame(newFrame)
+                            }
+                        }
                 }
             )
             // Hover support (macOS and iOS with pointer)
@@ -903,18 +1146,14 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
                     // Schedule show after delay
                     let workItem = DispatchWorkItem {
                         if isHovering {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                                isPresented = true
-                            }
+                            presentTooltip()
                         }
                     }
                     showWorkItem = workItem
                     DispatchQueue.main.asyncAfter(deadline: .now() + effectiveShowDelay, execute: workItem)
                 } else {
-                    // Hide with animation
-                    withAnimation(.easeIn(duration: 0.15)) {
-                        isPresented = false
-                    }
+                    // Hide
+                    dismissTooltip()
                 }
             }
             // Long press support (iOS touch without pointer)
@@ -922,91 +1161,39 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: effectiveShowDelay)
                     .onEnded { _ in
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                            isPresented = true
-                        }
+                        presentTooltip()
                         
                         // Auto-dismiss after configured duration on touch
                         DispatchQueue.main.asyncAfter(deadline: .now() + effectiveDisplayDuration) {
-                            withAnimation(.easeIn(duration: 0.15)) {
-                                isPresented = false
-                            }
+                            dismissTooltip()
                         }
                     }
             )
-            #endif
-            .overlay {
-                if isPresented {
-                    GeometryReader { geo in
-                        PTooltipInlineOverlay(
-                            isPresented: $isPresented,
-                            config: config,
-                            tooltipContent: tooltipContent
-                        )
-                        .background(
-                            GeometryReader { tooltipGeo in
-                                Color.clear
-                                    .onAppear { tooltipSize = tooltipGeo.size }
-                                    .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
-                            }
-                        )
-                        .position(calculateGlobalPosition())
-                        .allowsHitTesting(false)
-                        .frame(width: screenSize.width, height: screenSize.height)
-                        .position(
-                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
-                            y: screenSize.height / 2 - geo.frame(in: .global).minY
-                        )
-                    }
-                }
-            }
-            // Tap anywhere to dismiss on iOS
-            #if os(iOS)
+            // Tap anywhere to dismiss on iOS (handled by root overlay tap or explicit dismissal)
             .onTapGesture {
                 if isPresented {
-                    withAnimation(.easeIn(duration: 0.15)) {
-                        isPresented = false
-                    }
+                    dismissTooltip()
                 }
             }
             #endif
     }
     
-    private var screenSize: CGSize {
-        #if os(iOS) || os(tvOS)
-        return UIScreen.main.bounds.size
-        #elseif os(macOS)
-        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
-        #else
-        return .zero
-        #endif
+    private func presentTooltip() {
+        isPresented = true
+        PTooltipContentHolder.shared.present(
+            content: tooltipContent(),
+            config: config,
+            anchorFrame: anchorFrame,
+            dismiss: {
+                isPresented = false
+            }
+        )
     }
     
-    /// Calculate the global position for the tooltip
-    private func calculateGlobalPosition() -> CGPoint {
-        let gap = config.offset
-        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
-        
-        switch config.position {
-        case .top:
-            // Position tooltip above anchor
-            let y = anchorFrame.minY - (tooltipSize.height / 2) - gap
-            return CGPoint(x: anchorCenter.x, y: y)
-            
-        case .bottom:
-            // Position tooltip below anchor
-            let y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
-            return CGPoint(x: anchorCenter.x, y: y)
-            
-        case .leading:
-            // Position tooltip to the left of anchor
-            let x = anchorFrame.minX - (tooltipSize.width / 2) - gap
-            return CGPoint(x: x, y: anchorCenter.y)
-            
-        case .trailing:
-            // Position tooltip to the right of anchor
-            let x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
-            return CGPoint(x: x, y: anchorCenter.y)
+    private func dismissTooltip() {
+        isPresented = false
+        if PTooltipContentHolder.shared.isPresented {
+            PTooltipContentHolder.shared.dismiss()
         }
     }
 }
