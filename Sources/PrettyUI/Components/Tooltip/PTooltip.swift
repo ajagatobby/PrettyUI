@@ -43,15 +43,19 @@ final class PTooltipWindowManager {
                 .first
         else { return }
         
-        // Create or update the tooltip window
-        if tooltipWindow == nil {
-            let window = PassthroughWindow(windowScene: windowScene)
-            window.windowLevel = .alert + 100 // Above alerts
-            window.backgroundColor = .clear
-            window.isHidden = false
-            window.isUserInteractionEnabled = false // Pass through touches
-            tooltipWindow = window
-        }
+        // Always create fresh window and controller for proper state reset
+        // Clean up any existing window first
+        tooltipWindow?.isHidden = true
+        tooltipWindow?.rootViewController = nil
+        tooltipWindow = nil
+        hostingController = nil
+        
+        // Create new window
+        let window = PassthroughWindow(windowScene: windowScene)
+        window.windowLevel = .alert + 100 // Above alerts
+        window.backgroundColor = .clear
+        window.isUserInteractionEnabled = false // Pass through touches
+        tooltipWindow = window
         
         // Create hosting controller with the tooltip content
         let wrappedContent = AnyView(
@@ -60,25 +64,17 @@ final class PTooltipWindowManager {
                 .background(Color.clear)
         )
         
-        if let existingController = hostingController {
-            existingController.rootView = wrappedContent
-        } else {
-            let controller = UIHostingController(rootView: wrappedContent)
-            controller.view.backgroundColor = .clear
-            hostingController = controller
-            tooltipWindow?.rootViewController = controller
-        }
+        let controller = UIHostingController(rootView: wrappedContent)
+        controller.view.backgroundColor = .clear
+        hostingController = controller
+        tooltipWindow?.rootViewController = controller
         
+        // Show the window
         tooltipWindow?.isHidden = false
     }
     
-    /// Hide and clean up the tooltip window
+    /// Hide and clean up the tooltip window completely
     func hide() {
-        tooltipWindow?.isHidden = true
-    }
-    
-    /// Completely remove the tooltip window
-    func cleanup() {
         tooltipWindow?.isHidden = true
         tooltipWindow?.rootViewController = nil
         tooltipWindow = nil
