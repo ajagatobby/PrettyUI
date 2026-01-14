@@ -1,12 +1,12 @@
 # PrettyUI
 
-A beautiful, customizable SwiftUI component library inspired by [Family.co](https://family.co)'s design system. Build modern, friendly, and delightful iOS, macOS, tvOS, and watchOS apps with ease.
+A beautiful, customizable SwiftUI component library with a modern design system. Build friendly and delightful iOS, macOS, tvOS, and watchOS apps with ease.
 
 ## Features
 
 - **Comprehensive Theme System** - Full control over colors, typography, spacing, radius, and shadows
 - **Light & Dark Mode** - Automatic color scheme support with customizable palettes
-- **Family.co Design Language** - Soft edges, playful animations, and approachable aesthetics
+- **Modern Design Language** - Soft edges, playful animations, and approachable aesthetics
 - **20+ Components** - Buttons, Cards, TextFields, Modals, Toasts, Tabs, and more
 - **Fluent API** - Clean, chainable modifiers for easy customization
 - **Accessibility** - Reduced motion support and proper contrast ratios
@@ -53,7 +53,7 @@ struct MyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
         }
     }
 }
@@ -115,7 +115,7 @@ struct ContentView: View {
 
 ```swift
 .prettyTheme(.default)   // Neutral grayscale
-.prettyTheme(.family)    // Family.co cyan-blue (recommended)
+.prettyTheme(.sky)       // Vibrant cyan-blue (recommended)
 .prettyTheme(.indigo)    // Purple/indigo accent
 .prettyTheme(.emerald)   // Teal/green accent
 .prettyTheme(.amber)     // Orange/amber accent
@@ -183,7 +183,7 @@ extension PrettyTheme {
 | `xxl`  | 48pt  |
 | `xxxl` | 64pt  |
 
-### Border Radius (Family.co Guidelines)
+### Border Radius
 
 | Token  | Value  | Usage                 |
 | ------ | ------ | --------------------- |
@@ -211,8 +211,8 @@ extension PrettyTheme {
 ### Buttons
 
 ```swift
-// Primary button (Family style)
-PButton("Create Wallet")
+// Primary button
+PButton("Get Started")
     .variant(.primary)
     .icon("plus")
     .fullWidth()
@@ -295,10 +295,6 @@ struct CustomView: View {
 ## License
 
 MIT License - see [LICENSE](LICENSE) for details.
-
-## Credits
-
-Design system inspired by [Family.co](https://family.co) - a beautiful crypto wallet app.
 
 ---
 
