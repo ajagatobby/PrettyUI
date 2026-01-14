@@ -18,6 +18,94 @@ import UIKit
 import AppKit
 #endif
 
+// MARK: - Tooltip Window Manager (iOS)
+
+#if os(iOS)
+/// Manages a dedicated UIWindow for rendering tooltips above all other UI
+@available(iOS 16.0, *)
+@MainActor
+final class PTooltipWindowManager {
+    static let shared = PTooltipWindowManager()
+    
+    private var tooltipWindow: UIWindow?
+    private var hostingController: UIHostingController<AnyView>?
+    
+    private init() {}
+    
+    /// Show tooltip content in a dedicated window above all other UI
+    func show<Content: View>(content: Content) {
+        // Get the active window scene
+        guard let windowScene = UIApplication.shared.connectedScenes
+            .compactMap({ $0 as? UIWindowScene })
+            .first(where: { $0.activationState == .foregroundActive })
+            ?? UIApplication.shared.connectedScenes
+                .compactMap({ $0 as? UIWindowScene })
+                .first
+        else { return }
+        
+        // Create or update the tooltip window
+        if tooltipWindow == nil {
+            let window = PassthroughWindow(windowScene: windowScene)
+            window.windowLevel = .alert + 100 // Above alerts
+            window.backgroundColor = .clear
+            window.isHidden = false
+            window.isUserInteractionEnabled = false // Pass through touches
+            tooltipWindow = window
+        }
+        
+        // Create hosting controller with the tooltip content
+        let wrappedContent = AnyView(
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(Color.clear)
+        )
+        
+        if let existingController = hostingController {
+            existingController.rootView = wrappedContent
+        } else {
+            let controller = UIHostingController(rootView: wrappedContent)
+            controller.view.backgroundColor = .clear
+            hostingController = controller
+            tooltipWindow?.rootViewController = controller
+        }
+        
+        tooltipWindow?.isHidden = false
+    }
+    
+    /// Hide and clean up the tooltip window
+    func hide() {
+        tooltipWindow?.isHidden = true
+    }
+    
+    /// Completely remove the tooltip window
+    func cleanup() {
+        tooltipWindow?.isHidden = true
+        tooltipWindow?.rootViewController = nil
+        tooltipWindow = nil
+        hostingController = nil
+    }
+}
+
+/// A UIWindow subclass that passes through all touch events
+@available(iOS 16.0, *)
+private class PassthroughWindow: UIWindow {
+    override func hitTest(_ point: CGPoint, with event: UIEvent?) -> UIView? {
+        // Get the hit view
+        guard let hitView = super.hitTest(point, with: event) else { return nil }
+        
+        // If the hit view is the root view or hosting view, pass through
+        // Only intercept if we hit an actual interactive element
+        if hitView == self || hitView == rootViewController?.view {
+            return nil
+        }
+        
+        // For hosting controller's view hierarchy, we want to pass through
+        // since tooltips are non-interactive
+        return nil
+    }
+}
+#endif
+
 // MARK: - Tooltip Position
 
 /// Position options for PTooltip arrow
@@ -679,15 +767,20 @@ struct PTooltipInlineOverlay<TooltipContent: View>: View {
 
 // MARK: - PTooltip View Modifier
 
-/// A view modifier that presents a tooltip attached to the modified view
+/// A view modifier that presents a tooltip attached to the modified view.
+/// On iOS, tooltips are rendered in a separate UIWindow above all other UI.
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
     @Binding var isPresented: Bool
     var config: PTooltipConfiguration
     @ViewBuilder var tooltipContent: () -> TooltipContent
     
+    @Environment(\.prettyTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    
     @State private var anchorFrame: CGRect = .zero
     @State private var tooltipSize: CGSize = .zero
+    @State private var isAnimating: Bool = false
     
     public func body(content: Content) -> some View {
         content
@@ -698,64 +791,262 @@ public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
                         .onChange(of: geo.frame(in: .global)) { anchorFrame = $0 }
                 }
             )
-            .overlay {
+            .onChange(of: isPresented) { newValue in
+                if newValue {
+                    showTooltip()
+                } else {
+                    hideTooltip()
+                }
+            }
+            .onDisappear {
                 if isPresented {
-                    GeometryReader { geo in
-                        PTooltipInlineOverlay(
-                            isPresented: $isPresented,
-                            config: config,
-                            tooltipContent: tooltipContent
-                        )
-                        .background(
-                            GeometryReader { tooltipGeo in
-                                Color.clear
-                                    .onAppear { tooltipSize = tooltipGeo.size }
-                                    .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
-                            }
-                        )
-                        .position(calculateGlobalPosition())
-                        .frame(width: screenSize.width, height: screenSize.height)
-                        .position(
-                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
-                            y: screenSize.height / 2 - geo.frame(in: .global).minY
-                        )
-                    }
-                    .ignoresSafeArea()
+                    hideTooltip()
                 }
             }
     }
     
-    private var screenSize: CGSize {
-        #if os(iOS) || os(tvOS)
-        return UIScreen.main.bounds.size
-        #elseif os(macOS)
-        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
+    private func showTooltip() {
+        #if os(iOS)
+        // Use the window-based approach for iOS
+        let tooltipView = PTooltipWindowContent(
+            isPresented: $isPresented,
+            config: config,
+            anchorFrame: anchorFrame,
+            content: tooltipContent
+        )
+        .environment(\.prettyTheme, theme)
+        .environment(\.colorScheme, colorScheme)
+        
+        PTooltipWindowManager.shared.show(content: tooltipView)
+        
+        // Auto-dismiss if configured
+        if config.autoDismiss {
+            DispatchQueue.main.asyncAfter(deadline: .now() + config.autoDismissDelay) {
+                if isPresented {
+                    isPresented = false
+                }
+            }
+        }
         #else
-        return .zero
+        // For macOS and other platforms, use overlay approach
+        // (handled in body via overlay)
         #endif
     }
     
-    /// Calculate the global position for the tooltip
-    private func calculateGlobalPosition() -> CGPoint {
+    private func hideTooltip() {
+        #if os(iOS)
+        PTooltipWindowManager.shared.hide()
+        #endif
+    }
+}
+
+// MARK: - Tooltip Window Content (iOS)
+
+#if os(iOS)
+/// The tooltip content view rendered in the dedicated window
+@available(iOS 16.0, *)
+struct PTooltipWindowContent<Content: View>: View {
+    @Binding var isPresented: Bool
+    var config: PTooltipConfiguration
+    var anchorFrame: CGRect
+    @ViewBuilder var content: () -> Content
+    
+    @Environment(\.prettyTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    
+    @State private var isAnimating: Bool = false
+    @State private var tooltipSize: CGSize = .zero
+    
+    private var colors: ColorTokens {
+        theme.colors(for: colorScheme)
+    }
+    
+    /// Entry animation
+    private var entryAnimation: Animation {
+        reduceMotion
+            ? .easeOut(duration: 0.1)
+            : .spring(response: 0.28, dampingFraction: 0.85, blendDuration: 0)
+    }
+    
+    /// Exit animation
+    private var exitAnimation: Animation {
+        reduceMotion
+            ? .easeIn(duration: 0.08)
+            : .easeIn(duration: 0.15)
+    }
+    
+    var body: some View {
+        ZStack {
+            tooltipView
+                .background(
+                    GeometryReader { geo in
+                        Color.clear
+                            .onAppear { tooltipSize = geo.size }
+                            .onChange(of: geo.size) { tooltipSize = $0 }
+                    }
+                )
+                .position(calculatePosition())
+                .opacity(isAnimating ? 1 : 0)
+                .scaleEffect(isAnimating ? 1 : 0.95)
+                .offset(entryOffset)
+                .animation(isAnimating ? entryAnimation : exitAnimation, value: isAnimating)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .onAppear {
+            withAnimation(entryAnimation) {
+                isAnimating = true
+            }
+            
+            // Auto-dismiss if configured
+            if config.autoDismiss {
+                DispatchQueue.main.asyncAfter(deadline: .now() + config.autoDismissDelay) {
+                    dismiss()
+                }
+            }
+        }
+        .onChange(of: isPresented) { newValue in
+            if !newValue {
+                dismiss()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var tooltipView: some View {
+        Group {
+            switch config.position {
+            case .top:
+                VStack(spacing: 0) {
+                    contentBody
+                    arrowView
+                }
+            case .bottom:
+                VStack(spacing: 0) {
+                    arrowView
+                    contentBody
+                }
+            case .leading:
+                HStack(spacing: 0) {
+                    contentBody
+                    arrowView
+                }
+            case .trailing:
+                HStack(spacing: 0) {
+                    arrowView
+                    contentBody
+                }
+            }
+        }
+        .fixedSize()
+        .shadow(
+            color: Color.black.opacity(0.15),
+            radius: 12,
+            x: 0,
+            y: 4
+        )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if config.dismissOnTap {
+                dismiss()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var contentBody: some View {
+        let resolvedRadius = theme.radius[config.radius]
+        let resolvedPadding = theme.spacing[config.padding]
+        
+        content()
+            .font(.system(size: theme.typography.sizes.sm, weight: .medium))
+            .foregroundColor(foregroundColor)
+            .padding(.horizontal, resolvedPadding * config.horizontalPaddingMultiplier)
+            .padding(.vertical, resolvedPadding)
+            .frame(maxWidth: config.maxWidth)
+            .background(backgroundColor)
+            .clipShape(RoundedRectangle(cornerRadius: resolvedRadius, style: .continuous))
+    }
+    
+    @ViewBuilder
+    private var arrowView: some View {
+        TooltipArrowShape(position: config.position)
+            .fill(backgroundColor)
+            .frame(
+                width: config.position == .top || config.position == .bottom ? config.arrowSize * 2 : config.arrowSize,
+                height: config.position == .top || config.position == .bottom ? config.arrowSize : config.arrowSize * 2
+            )
+    }
+    
+    private var backgroundColor: Color {
+        switch config.style {
+        case .dark: return colors.foreground
+        case .light: return colors.card
+        case .custom(let background, _): return background.color
+        }
+    }
+    
+    private var foregroundColor: Color {
+        switch config.style {
+        case .dark: return colors.background
+        case .light: return colors.foreground
+        case .custom(_, let text): return text.color
+        }
+    }
+    
+    private func calculatePosition() -> CGPoint {
+        let screenSize = UIScreen.main.bounds.size
         let gap = config.offset
         let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
         
+        var x: CGFloat = anchorCenter.x
+        var y: CGFloat = anchorCenter.y
+        
         switch config.position {
         case .top:
-            let y = anchorFrame.minY - (tooltipSize.height / 2) - gap
-            return CGPoint(x: anchorCenter.x, y: y)
+            y = anchorFrame.minY - (tooltipSize.height / 2) - gap
         case .bottom:
-            let y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
-            return CGPoint(x: anchorCenter.x, y: y)
+            y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
         case .leading:
-            let x = anchorFrame.minX - (tooltipSize.width / 2) - gap
-            return CGPoint(x: x, y: anchorCenter.y)
+            x = anchorFrame.minX - (tooltipSize.width / 2) - gap
         case .trailing:
-            let x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
-            return CGPoint(x: x, y: anchorCenter.y)
+            x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
+        }
+        
+        // Clamp to screen bounds
+        let padding: CGFloat = 8
+        let halfWidth = tooltipSize.width / 2
+        let halfHeight = tooltipSize.height / 2
+        
+        x = max(padding + halfWidth, min(x, screenSize.width - padding - halfWidth))
+        y = max(padding + halfHeight, min(y, screenSize.height - padding - halfHeight))
+        
+        return CGPoint(x: x, y: y)
+    }
+    
+    private var entryOffset: CGSize {
+        guard !isAnimating else { return .zero }
+        let distance: CGFloat = 6
+        
+        switch config.position {
+        case .top: return CGSize(width: 0, height: distance)
+        case .bottom: return CGSize(width: 0, height: -distance)
+        case .leading: return CGSize(width: distance, height: 0)
+        case .trailing: return CGSize(width: -distance, height: 0)
+        }
+    }
+    
+    private func dismiss() {
+        withAnimation(exitAnimation) {
+            isAnimating = false
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            isPresented = false
+            PTooltipWindowManager.shared.hide()
         }
     }
 }
+#endif
 
 
 // MARK: - View Extension for pTooltip
@@ -856,17 +1147,20 @@ public extension View {
 
 // MARK: - Hover Tooltip Modifier
 
-/// A view modifier that shows a tooltip on hover (macOS/pointer) or long press (iOS touch)
+/// A view modifier that shows a tooltip on hover (macOS/pointer) or long press (iOS touch).
+/// On iOS, tooltips are rendered in a separate UIWindow above all other UI.
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
     var config: PTooltipConfiguration
     @ViewBuilder var tooltipContent: () -> TooltipContent
     
+    @Environment(\.prettyTheme) private var theme
+    @Environment(\.colorScheme) private var colorScheme
+    
     @State private var isPresented = false
     @State private var isHovering = false
     @State private var showWorkItem: DispatchWorkItem?
     @State private var anchorFrame: CGRect = .zero
-    @State private var tooltipSize: CGSize = .zero
     
     /// The delay before showing the tooltip
     private var effectiveShowDelay: Double {
@@ -898,18 +1192,14 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
                     // Schedule show after delay
                     let workItem = DispatchWorkItem {
                         if isHovering {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                                isPresented = true
-                            }
+                            showTooltip()
                         }
                     }
                     showWorkItem = workItem
                     DispatchQueue.main.asyncAfter(deadline: .now() + effectiveShowDelay, execute: workItem)
                 } else {
-                    // Hide with animation
-                    withAnimation(.easeIn(duration: 0.15)) {
-                        isPresented = false
-                    }
+                    // Hide
+                    hideTooltip()
                 }
             }
             // Long press support (iOS touch without pointer)
@@ -917,86 +1207,51 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
             .simultaneousGesture(
                 LongPressGesture(minimumDuration: effectiveShowDelay)
                     .onEnded { _ in
-                        withAnimation(.spring(response: 0.28, dampingFraction: 0.85)) {
-                            isPresented = true
-                        }
+                        showTooltip()
                         
                         // Auto-dismiss after configured duration on touch
                         DispatchQueue.main.asyncAfter(deadline: .now() + effectiveDisplayDuration) {
-                            withAnimation(.easeIn(duration: 0.15)) {
-                                isPresented = false
-                            }
+                            hideTooltip()
                         }
                     }
             )
-            #endif
-            .overlay {
-                if isPresented {
-                    GeometryReader { geo in
-                        PTooltipInlineOverlay(
-                            isPresented: $isPresented,
-                            config: config,
-                            tooltipContent: tooltipContent
-                        )
-                        .background(
-                            GeometryReader { tooltipGeo in
-                                Color.clear
-                                    .onAppear { tooltipSize = tooltipGeo.size }
-                                    .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
-                            }
-                        )
-                        .position(calculateGlobalPosition())
-                        .allowsHitTesting(false)
-                        .frame(width: screenSize.width, height: screenSize.height)
-                        .position(
-                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
-                            y: screenSize.height / 2 - geo.frame(in: .global).minY
-                        )
-                    }
-                    .ignoresSafeArea()
-                }
-            }
             // Tap anywhere to dismiss on iOS
-            #if os(iOS)
             .onTapGesture {
                 if isPresented {
-                    withAnimation(.easeIn(duration: 0.15)) {
-                        isPresented = false
-                    }
+                    hideTooltip()
                 }
             }
             #endif
+            .onDisappear {
+                if isPresented {
+                    hideTooltip()
+                }
+            }
     }
     
-    private var screenSize: CGSize {
-        #if os(iOS) || os(tvOS)
-        return UIScreen.main.bounds.size
-        #elseif os(macOS)
-        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
-        #else
-        return .zero
+    private func showTooltip() {
+        isPresented = true
+        
+        #if os(iOS)
+        let tooltipView = PTooltipWindowContent(
+            isPresented: $isPresented,
+            config: config,
+            anchorFrame: anchorFrame,
+            content: tooltipContent
+        )
+        .environment(\.prettyTheme, theme)
+        .environment(\.colorScheme, colorScheme)
+        
+        PTooltipWindowManager.shared.show(content: tooltipView)
         #endif
     }
     
-    /// Calculate the global position for the tooltip
-    private func calculateGlobalPosition() -> CGPoint {
-        let gap = config.offset
-        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
+    private func hideTooltip() {
+        isPresented = false
         
-        switch config.position {
-        case .top:
-            let y = anchorFrame.minY - (tooltipSize.height / 2) - gap
-            return CGPoint(x: anchorCenter.x, y: y)
-        case .bottom:
-            let y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
-            return CGPoint(x: anchorCenter.x, y: y)
-        case .leading:
-            let x = anchorFrame.minX - (tooltipSize.width / 2) - gap
-            return CGPoint(x: x, y: anchorCenter.y)
-        case .trailing:
-            let x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
-            return CGPoint(x: x, y: anchorCenter.y)
-        }
+        #if os(iOS)
+        PTooltipWindowManager.shared.hide()
+        #endif
     }
 }
 
