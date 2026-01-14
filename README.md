@@ -1,8 +1,30 @@
 # PrettyUI
 
+![Swift](https://img.shields.io/badge/Swift-6.0+-orange.svg)
+![Platforms](https://img.shields.io/badge/Platforms-iOS%2016%2B%20%7C%20macOS%2013%2B%20%7C%20tvOS%2016%2B%20%7C%20watchOS%209%2B-blue.svg)
+![SPM](https://img.shields.io/badge/SPM-Compatible-brightgreen.svg)
+![License](https://img.shields.io/badge/License-MIT-lightgrey.svg)
+
 A beautiful, customizable SwiftUI component library with a modern design system. Build friendly and delightful iOS, macOS, tvOS, and watchOS apps with ease.
 
-## Features
+---
+
+## Table of Contents
+
+- [Features](#-features)
+- [Requirements](#-requirements)
+- [Installation](#-installation)
+- [Quick Start](#-quick-start)
+- [Components](#-components)
+- [Preview](#-preview)
+- [Theming](#-theming)
+- [Design Tokens](#-design-tokens)
+- [Examples](#-examples)
+- [License](#-license)
+
+---
+
+## ✨ Features
 
 - **Comprehensive Theme System** - Full control over colors, typography, spacing, radius, and shadows
 - **Light & Dark Mode** - Automatic color scheme support with customizable palettes
@@ -11,13 +33,22 @@ A beautiful, customizable SwiftUI component library with a modern design system.
 - **Fluent API** - Clean, chainable modifiers for easy customization
 - **Accessibility** - Reduced motion support and proper contrast ratios
 
-## Requirements
+---
 
-- iOS 16.0+ / macOS 13.0+ / tvOS 16.0+ / watchOS 9.0+
-- Swift 6.0+
-- Xcode 16.0+
+## 📋 Requirements
 
-## Installation
+| Requirement | Version |
+| ----------- | ------- |
+| iOS         | 16.0+   |
+| macOS       | 13.0+   |
+| tvOS        | 16.0+   |
+| watchOS     | 9.0+    |
+| Swift       | 6.0+    |
+| Xcode       | 16.0+   |
+
+---
+
+## 📦 Installation
 
 ### Swift Package Manager
 
@@ -38,7 +69,9 @@ dependencies: [
 ]
 ```
 
-## Quick Start
+---
+
+## 🚀 Quick Start
 
 ### 1. Apply a Theme
 
@@ -87,7 +120,9 @@ struct ContentView: View {
 }
 ```
 
-## Available Components
+---
+
+## 🧩 Components
 
 | Component     | Description                                              |
 | ------------- | -------------------------------------------------------- |
@@ -109,7 +144,20 @@ struct ContentView: View {
 | `PBottomTab`  | Bottom navigation bar                                    |
 | `PAccordion`  | Collapsible content sections                             |
 
-## Theming
+---
+
+## 📸 Preview
+
+> Screenshots and component previews coming soon.
+
+<!--
+Add your component screenshots or GIFs here:
+![Components Preview](assets/preview.png)
+-->
+
+---
+
+## 🎨 Theming
 
 ### Built-in Themes
 
@@ -168,7 +216,9 @@ extension PrettyTheme {
 }
 ```
 
-## Design Tokens
+---
+
+## 📐 Design Tokens
 
 ### Spacing (8pt Grid)
 
@@ -206,7 +256,9 @@ extension PrettyTheme {
 | `xl`   | Modals, sheets                 |
 | `xxl`  | Popovers                       |
 
-## Component Examples
+---
+
+## 💡 Examples
 
 ### Buttons
 
@@ -272,7 +324,7 @@ PTextField("Password", text: $password)
 PSearchField("Search...", text: $query)
 ```
 
-## Accessing Theme Values
+### Accessing Theme Values
 
 Use `ThemeReader` or environment to access theme tokens in custom views:
 
@@ -292,10 +344,12 @@ struct CustomView: View {
 }
 ```
 
-## License
+---
+
+## 📄 License
 
 MIT License - see [LICENSE](LICENSE) for details.
 
 ---
 
-Built with ❤️ by **Ajaga Abdulbasit**
+<p align="center">Built with ❤️ by <strong>Ajaga Abdulbasit</strong></p>
