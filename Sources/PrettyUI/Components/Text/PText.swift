@@ -126,7 +126,7 @@ public struct PTextConfiguration {
 /// ```swift
 /// PText("Create Wallet")
 ///     .style(.headline)
-///     .color(.primary)
+///     .color(PTextColor.primary)
 ///
 /// PText("0x1234...5678")
 ///     .style(.caption)
@@ -734,25 +734,25 @@ struct PText_Previews: PreviewProvider {
                     
                     VStack(alignment: .leading, spacing: 12) {
                         PText("Primary Color")
-                            .color(.primary)
+                            .color(PTextColor.primary)
                         
                         PText("Secondary Color")
-                            .color(.secondary)
+                            .color(PTextColor.secondary)
                         
                         PText("Muted Color")
-                            .color(.muted)
+                            .color(PTextColor.muted)
                         
                         PText("Accent Color")
-                            .color(.accent)
+                            .color(PTextColor.accent)
                         
                         PText("Destructive Color")
-                            .color(.destructive)
+                            .color(PTextColor.destructive)
                         
                         PText("Success Color")
-                            .color(.success)
+                            .color(PTextColor.success)
                         
                         PText("Warning Color")
-                            .color(.warning)
+                            .color(PTextColor.warning)
                     }
                 }
                 
@@ -806,7 +806,7 @@ struct PText_Previews: PreviewProvider {
                         
                         PText("Large Title Font")
                             .font(.largeTitle)
-                            .color(.accent)
+                            .color(PTextColor.accent)
                     }
                 }
                 
@@ -870,7 +870,7 @@ struct PText_Previews: PreviewProvider {
                         PText("0x1234...abcd")
                             .style(.caption)
                             .mono()
-                            .color(.muted)
+                            .color(PTextColor.muted)
                         
                         PText("func createWallet() { }")
                             .style(.body)
@@ -898,7 +898,7 @@ struct PText_Previews: PreviewProvider {
                             PText("Raised")
                                 .baselineOffset(8)
                                 .style(.small)
-                                .color(.accent)
+                                .color(PTextColor.accent)
                         }
                     }
                 }
@@ -914,7 +914,7 @@ struct PText_Previews: PreviewProvider {
                     VStack(alignment: .leading, spacing: 12) {
                         PText.headline("Headline Helper")
                         PText.caption("Caption Helper")
-                            .color(.muted)
+                            .color(PTextColor.muted)
                     }
                 }
                 
@@ -932,7 +932,7 @@ struct PText_Previews: PreviewProvider {
                         
                         PText("Secure your assets with a new wallet. It only takes a minute to set up.")
                             .style(.body)
-                            .color(.muted)
+                            .color(PTextColor.muted)
                             .lineLimit(2)
                     }
                 }
@@ -949,7 +949,7 @@ struct PText_Previews: PreviewProvider {
                 
                 PText("Your wallet is ready")
                     .style(.body)
-                    .color(.muted)
+                    .color(PTextColor.muted)
                 
                 PText("$12,345.67")
                     .style(.headline)
@@ -960,7 +960,7 @@ struct PText_Previews: PreviewProvider {
                     .style(.caption)
                     .uppercase()
                     .tracking(2)
-                    .color(.accent)
+                    .color(PTextColor.accent)
             }
             .padding()
         }
