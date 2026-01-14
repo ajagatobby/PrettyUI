@@ -90,6 +90,8 @@ public struct PTextConfiguration {
     var style: PTextStyle = .body
     var color: PTextColor = .primary
     var weight: Font.Weight? = nil
+    var fontDesign: Font.Design? = nil
+    var fontSize: CGFloat? = nil
     var isMonospace: Bool = false
     var lineSpacing: CGFloat? = nil
     var kerning: CGFloat? = nil
@@ -185,10 +187,15 @@ public struct PText: View {
         var textView = Text(text)
         
         // Apply font (custom or resolved)
+        // When using custom font via .font() modifier, use it directly
+        // Otherwise use resolved font which has weight/design baked in
         textView = textView.font(config.customFont ?? resolvedFont)
         
-        // Apply weight
-        textView = textView.fontWeight(resolvedWeight)
+        // Apply weight only for custom font families (which can't embed weight)
+        // System fonts already have weight baked in via resolvedFont
+        if config.customFont == nil && usesCustomFontFamily {
+            textView = textView.fontWeight(resolvedWeight)
+        }
         
         // Apply bold if set (in addition to weight)
         if config.isBold {
@@ -232,24 +239,46 @@ public struct PText: View {
     // MARK: - Resolved Values
     
     private var resolvedFont: Font {
-        let size = fontSize
+        let size = resolvedFontSize
+        let design = resolvedDesign
+        let weight = resolvedWeight
         
         if config.isMonospace {
             if let fontName = typography.monoFontFamily.name {
                 return .custom(fontName, size: size)
             } else {
-                return .system(size: size, design: .monospaced)
+                return .system(size: size, weight: weight, design: .monospaced)
             }
         }
         
         if let fontName = typography.fontFamily.name {
             return .custom(fontName, size: size)
         } else {
-            return .system(size: size)
+            return .system(size: size, weight: weight, design: design)
         }
     }
     
-    private var fontSize: CGFloat {
+    private var resolvedDesign: Font.Design {
+        config.fontDesign ?? .default
+    }
+    
+    /// Whether we're using a custom font family from typography (vs system font)
+    private var usesCustomFontFamily: Bool {
+        if config.isMonospace {
+            return typography.monoFontFamily.name != nil
+        }
+        return typography.fontFamily.name != nil
+    }
+    
+    private var resolvedFontSize: CGFloat {
+        // Custom font size takes precedence
+        if let customSize = config.fontSize {
+            return customSize
+        }
+        return styleFontSize
+    }
+    
+    private var styleFontSize: CGFloat {
         switch config.style {
         case .display:
             return typography.sizes.display
@@ -347,7 +376,7 @@ public struct PText: View {
         }
         
         // Convert line height multiplier to actual spacing
-        return (lineHeight - 1) * fontSize * 0.5
+        return (lineHeight - 1) * resolvedFontSize * 0.5
     }
 }
 
@@ -374,6 +403,59 @@ public extension PText {
     func weight(_ weight: Font.Weight) -> PText {
         var newConfig = config
         newConfig.weight = weight
+        return PText(text: text, config: newConfig)
+    }
+    
+    /// Set the font weight (SwiftUI-style modifier name)
+    /// - Parameter weight: The font weight to apply
+    func fontWeight(_ weight: Font.Weight) -> PText {
+        self.weight(weight)
+    }
+    
+    /// Set the font design
+    /// - Parameter design: The font design (default, rounded, serif, monospaced)
+    ///
+    /// Example:
+    /// ```swift
+    /// PText("Rounded Design")
+    ///     .fontDesign(.rounded)
+    /// ```
+    func fontDesign(_ design: Font.Design) -> PText {
+        var newConfig = config
+        newConfig.fontDesign = design
+        return PText(text: text, config: newConfig)
+    }
+    
+    /// Set a custom font size
+    /// - Parameter size: The font size in points
+    ///
+    /// This overrides the size from the text style while keeping other style properties.
+    func fontSize(_ size: CGFloat) -> PText {
+        var newConfig = config
+        newConfig.fontSize = size
+        return PText(text: text, config: newConfig)
+    }
+    
+    /// Configure font with size, weight, and design in one call
+    /// - Parameters:
+    ///   - size: The font size in points
+    ///   - weight: The font weight (optional)
+    ///   - design: The font design (optional)
+    ///
+    /// Example:
+    /// ```swift
+    /// PText("Custom Font")
+    ///     .systemFont(size: 28, weight: .semibold, design: .rounded)
+    /// ```
+    func systemFont(size: CGFloat, weight: Font.Weight? = nil, design: Font.Design? = nil) -> PText {
+        var newConfig = config
+        newConfig.fontSize = size
+        if let weight = weight {
+            newConfig.weight = weight
+        }
+        if let design = design {
+            newConfig.fontDesign = design
+        }
         return PText(text: text, config: newConfig)
     }
     
@@ -684,6 +766,37 @@ struct PText_Previews: PreviewProvider {
                 
                 Divider()
                 
+                // Font Design & Weight
+                Group {
+                    Text("Font Design & Weight Modifiers")
+                        .font(.headline)
+                        .foregroundColor(.gray)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        PText("Rounded Design")
+                            .fontDesign(.rounded)
+                            .fontSize(24)
+                            .fontWeight(.semibold)
+                        
+                        PText("Serif Design")
+                            .fontDesign(.serif)
+                            .fontSize(20)
+                        
+                        PText("System Font Helper")
+                            .systemFont(size: 28, weight: .semibold, design: .rounded)
+                        
+                        PText("Custom Size with Style")
+                            .style(.headline)
+                            .fontSize(32)
+                            .fontDesign(.rounded)
+                        
+                        PText("Font Weight Modifier")
+                            .fontWeight(.heavy)
+                    }
+                }
+                
+                Divider()
+                
                 // Text Case
                 Group {
                     Text("Text Case")
@@ -811,4 +924,5 @@ struct PText_Previews: PreviewProvider {
     }
 }
 #endif
+
 
