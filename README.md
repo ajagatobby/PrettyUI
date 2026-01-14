@@ -53,7 +53,7 @@ struct MyApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .prettyTheme(.family)  // Use the Family.co inspired theme
+                .prettyTheme(.family)
         }
     }
 }
@@ -67,15 +67,15 @@ import PrettyUI
 struct ContentView: View {
     @State private var email = ""
     @State private var isLoading = false
-    
+
     var body: some View {
         VStack(spacing: 24) {
             PText("Welcome Back")
                 .style(.headline)
-            
+
             PTextField("Email", text: $email)
                 .leadingIcon("envelope")
-            
+
             PButton("Sign In") {
                 isLoading = true
             }
@@ -89,25 +89,25 @@ struct ContentView: View {
 
 ## Available Components
 
-| Component | Description |
-|-----------|-------------|
-| `PButton` | Customizable button with variants, sizes, loading states |
-| `PIconButton` | Circular icon-only button |
-| `PCard` | Container with shadows, borders, and press states |
-| `PTextField` | Text input with floating labels, validation, icons |
-| `PText` | Typography component with preset styles |
-| `PAvatar` | User avatar with images, initials, status indicators |
-| `PAlert` | Inline notification banners |
-| `PModal` | Dialog/modal presentations |
-| `PToast` | Ephemeral notification toasts |
-| `PTooltip` | Contextual tooltips |
-| `PPopover` | Interactive popovers anchored to triggers |
-| `PSpinner` | Loading spinners with multiple styles |
-| `PSkeleton` | Content loading placeholders |
-| `PList` | Styled list containers |
-| `PTopTab` | Horizontal tab navigation |
-| `PBottomTab` | Bottom navigation bar |
-| `PAccordion` | Collapsible content sections |
+| Component     | Description                                              |
+| ------------- | -------------------------------------------------------- |
+| `PButton`     | Customizable button with variants, sizes, loading states |
+| `PIconButton` | Circular icon-only button                                |
+| `PCard`       | Container with shadows, borders, and press states        |
+| `PTextField`  | Text input with floating labels, validation, icons       |
+| `PText`       | Typography component with preset styles                  |
+| `PAvatar`     | User avatar with images, initials, status indicators     |
+| `PAlert`      | Inline notification banners                              |
+| `PModal`      | Dialog/modal presentations                               |
+| `PToast`      | Ephemeral notification toasts                            |
+| `PTooltip`    | Contextual tooltips                                      |
+| `PPopover`    | Interactive popovers anchored to triggers                |
+| `PSpinner`    | Loading spinners with multiple styles                    |
+| `PSkeleton`   | Content loading placeholders                             |
+| `PList`       | Styled list containers                                   |
+| `PTopTab`     | Horizontal tab navigation                                |
+| `PBottomTab`  | Bottom navigation bar                                    |
+| `PAccordion`  | Collapsible content sections                             |
 
 ## Theming
 
@@ -172,39 +172,39 @@ extension PrettyTheme {
 
 ### Spacing (8pt Grid)
 
-| Token | Value |
-|-------|-------|
-| `xxs` | 2pt |
-| `xs` | 4pt |
-| `sm` | 8pt |
-| `md` | 16pt |
-| `lg` | 24pt |
-| `xl` | 32pt |
-| `xxl` | 48pt |
-| `xxxl` | 64pt |
+| Token  | Value |
+| ------ | ----- |
+| `xxs`  | 2pt   |
+| `xs`   | 4pt   |
+| `sm`   | 8pt   |
+| `md`   | 16pt  |
+| `lg`   | 24pt  |
+| `xl`   | 32pt  |
+| `xxl`  | 48pt  |
+| `xxxl` | 64pt  |
 
 ### Border Radius (Family.co Guidelines)
 
-| Token | Value | Usage |
-|-------|-------|-------|
-| `none` | 0pt | - |
-| `sm` | 6pt | Small chips, tags |
-| `md` | 10pt | Inputs, small cards |
-| `lg` | 14pt | Standard cards |
-| `xl` | 20pt | Large cards, images |
-| `xxl` | 28pt | Modals, sheets |
+| Token  | Value  | Usage                 |
+| ------ | ------ | --------------------- |
+| `none` | 0pt    | -                     |
+| `sm`   | 6pt    | Small chips, tags     |
+| `md`   | 10pt   | Inputs, small cards   |
+| `lg`   | 14pt   | Standard cards        |
+| `xl`   | 20pt   | Large cards, images   |
+| `xxl`  | 28pt   | Modals, sheets        |
 | `full` | 9999pt | Pill buttons, avatars |
 
 ### Shadows
 
-| Token | Usage |
-|-------|-------|
-| `none` | No shadow |
-| `sm` | Cards at rest |
-| `md` | Cards on hover/focus, tooltips |
-| `lg` | Floating elements |
-| `xl` | Modals, sheets |
-| `xxl` | Popovers |
+| Token  | Usage                          |
+| ------ | ------------------------------ |
+| `none` | No shadow                      |
+| `sm`   | Cards at rest                  |
+| `md`   | Cards on hover/focus, tooltips |
+| `lg`   | Floating elements              |
+| `xl`   | Modals, sheets                 |
+| `xxl`  | Popovers                       |
 
 ## Component Examples
 
@@ -280,10 +280,10 @@ Use `ThemeReader` or environment to access theme tokens in custom views:
 struct CustomView: View {
     @Environment(\.prettyTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
-    
+
     var body: some View {
         let colors = theme.colors(for: colorScheme)
-        
+
         Rectangle()
             .fill(colors.primary)
             .frame(height: theme.spacing.xl)
@@ -302,5 +302,4 @@ Design system inspired by [Family.co](https://family.co) - a beautiful crypto wa
 
 ---
 
-Built with ❤️ by [Mecury Labs](https://mecurylabs.com)
-
+Built with ❤️ by **Ajaga Abdulbasit**
