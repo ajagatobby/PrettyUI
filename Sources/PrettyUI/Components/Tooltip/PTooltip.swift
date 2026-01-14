@@ -855,6 +855,8 @@ struct PTooltipWindowContent<Content: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
+    // Track if we've measured the tooltip size
+    @State private var hasMeasured: Bool = false
     @State private var isAnimating: Bool = false
     @State private var tooltipSize: CGSize = .zero
     
@@ -877,25 +879,47 @@ struct PTooltipWindowContent<Content: View>: View {
     }
     
     var body: some View {
-        ZStack {
-            tooltipView
-                .background(
-                    GeometryReader { geo in
-                        Color.clear
-                            .onAppear { tooltipSize = geo.size }
-                            .onChange(of: geo.size) { tooltipSize = $0 }
-                    }
-                )
-                .position(calculatePosition())
-                .opacity(isAnimating ? 1 : 0)
-                .scaleEffect(isAnimating ? 1 : 0.95)
-                .offset(entryOffset)
-                .animation(isAnimating ? entryAnimation : exitAnimation, value: isAnimating)
+        GeometryReader { screenGeo in
+            // Use ZStack with alignment to position tooltip
+            ZStack(alignment: tooltipAlignment) {
+                // Invisible spacer that fills the screen
+                Color.clear
+                
+                // Position a reference point at the anchor location
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .position(anchorPosition)
+                
+                // The actual tooltip, offset from anchor
+                tooltipView
+                    .background(
+                        GeometryReader { geo in
+                            Color.clear
+                                .onAppear {
+                                    tooltipSize = geo.size
+                                    hasMeasured = true
+                                }
+                                .onChange(of: geo.size) { newSize in
+                                    tooltipSize = newSize
+                                    hasMeasured = true
+                                }
+                        }
+                    )
+                    .offset(calculateTooltipOffset())
+                    .position(anchorPosition)
+                    .opacity(hasMeasured && isAnimating ? 1 : 0)
+                    .scaleEffect(isAnimating ? 1 : 0.95)
+                    .offset(entryOffset)
+                    .animation(isAnimating ? entryAnimation : exitAnimation, value: isAnimating)
+            }
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .ignoresSafeArea()
         .onAppear {
-            withAnimation(entryAnimation) {
-                isAnimating = true
+            // Slight delay to ensure measurement happens first
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.01) {
+                withAnimation(entryAnimation) {
+                    isAnimating = true
+                }
             }
             
             // Auto-dismiss if configured
@@ -910,6 +934,73 @@ struct PTooltipWindowContent<Content: View>: View {
                 dismiss()
             }
         }
+    }
+    
+    /// The center position of the anchor element
+    private var anchorPosition: CGPoint {
+        CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
+    }
+    
+    /// Alignment for tooltip positioning (not directly used but kept for clarity)
+    private var tooltipAlignment: Alignment {
+        switch config.position {
+        case .top: return .bottom
+        case .bottom: return .top
+        case .leading: return .trailing
+        case .trailing: return .leading
+        }
+    }
+    
+    /// Calculate the offset to move tooltip from anchor center to correct position
+    private func calculateTooltipOffset() -> CGSize {
+        guard hasMeasured else { return .zero }
+        
+        let gap = config.offset
+        let halfWidth = tooltipSize.width / 2
+        let halfHeight = tooltipSize.height / 2
+        let anchorHalfWidth = anchorFrame.width / 2
+        let anchorHalfHeight = anchorFrame.height / 2
+        
+        var offsetX: CGFloat = 0
+        var offsetY: CGFloat = 0
+        
+        switch config.position {
+        case .top:
+            // Tooltip above: move up by anchor half height + gap + tooltip half height
+            offsetY = -(anchorHalfHeight + gap + halfHeight)
+        case .bottom:
+            // Tooltip below: move down by anchor half height + gap + tooltip half height
+            offsetY = anchorHalfHeight + gap + halfHeight
+        case .leading:
+            // Tooltip to left: move left by anchor half width + gap + tooltip half width
+            offsetX = -(anchorHalfWidth + gap + halfWidth)
+        case .trailing:
+            // Tooltip to right: move right by anchor half width + gap + tooltip half width
+            offsetX = anchorHalfWidth + gap + halfWidth
+        }
+        
+        // Apply screen edge clamping
+        let screenSize = UIScreen.main.bounds.size
+        let padding: CGFloat = 8
+        
+        let finalX = anchorFrame.midX + offsetX
+        let finalY = anchorFrame.midY + offsetY
+        
+        // Clamp X position
+        if finalX - halfWidth < padding {
+            offsetX += (padding + halfWidth - finalX)
+        } else if finalX + halfWidth > screenSize.width - padding {
+            offsetX -= (finalX + halfWidth - screenSize.width + padding)
+        }
+        
+        // Clamp Y position
+        if finalY - halfHeight < padding {
+            offsetY += (padding + halfHeight - finalY)
+        } else if finalY + halfHeight > screenSize.height - padding {
+            offsetY -= (finalY + halfHeight - screenSize.height + padding)
+        }
+        
+        return CGSize(width: offsetX, height: offsetY)
     }
     
     @ViewBuilder
@@ -994,35 +1085,6 @@ struct PTooltipWindowContent<Content: View>: View {
         }
     }
     
-    private func calculatePosition() -> CGPoint {
-        let screenSize = UIScreen.main.bounds.size
-        let gap = config.offset
-        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
-        
-        var x: CGFloat = anchorCenter.x
-        var y: CGFloat = anchorCenter.y
-        
-        switch config.position {
-        case .top:
-            y = anchorFrame.minY - (tooltipSize.height / 2) - gap
-        case .bottom:
-            y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
-        case .leading:
-            x = anchorFrame.minX - (tooltipSize.width / 2) - gap
-        case .trailing:
-            x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
-        }
-        
-        // Clamp to screen bounds
-        let padding: CGFloat = 8
-        let halfWidth = tooltipSize.width / 2
-        let halfHeight = tooltipSize.height / 2
-        
-        x = max(padding + halfWidth, min(x, screenSize.width - padding - halfWidth))
-        y = max(padding + halfHeight, min(y, screenSize.height - padding - halfHeight))
-        
-        return CGPoint(x: x, y: y)
-    }
     
     private var entryOffset: CGSize {
         guard !isAnimating else { return .zero }
