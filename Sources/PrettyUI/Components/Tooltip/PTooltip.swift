@@ -684,7 +684,7 @@ struct PTooltipInlineOverlay<TooltipContent: View>: View {
 final class PTooltipContentHolder: ObservableObject {
     nonisolated(unsafe) static let shared = PTooltipContentHolder()
     
-    @Published varcurrentContent: AnyView? = nil
+    @Published var currentContent: AnyView? = nil
     @Published var currentConfig: PTooltipConfiguration? = nil
     @Published var currentAnchorFrame: CGRect = .zero
     @Published var isPresented: Bool = false
@@ -1076,6 +1076,7 @@ public extension View {
             )
         )
     }
+    
     /// Apply at the root of your app to enable tooltip rendering above all content.
     ///
     /// This modifier sets up the root-level overlay system that ensures tooltips
