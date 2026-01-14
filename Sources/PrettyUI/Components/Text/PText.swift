@@ -392,10 +392,28 @@ public extension PText {
         return PText(text: text, config: newConfig)
     }
     
-    /// Set the text color
+    /// Set the text color using PTextColor presets
+    /// - Parameter color: PTextColor preset (.primary, .secondary, .muted, etc.)
     func color(_ color: PTextColor) -> PText {
         var newConfig = config
         newConfig.color = color
+        return PText(text: text, config: newConfig)
+    }
+    
+    /// Set the text color using any SwiftUI Color
+    /// - Parameter color: Any SwiftUI Color
+    ///
+    /// Example:
+    /// ```swift
+    /// PText("Theme Color")
+    ///     .foregroundColor(colors.mutedForeground)
+    ///
+    /// PText("Custom Color")
+    ///     .foregroundColor(Color.blue)
+    /// ```
+    func foregroundColor(_ color: Color) -> PText {
+        var newConfig = config
+        newConfig.color = .custom(color)
         return PText(text: text, config: newConfig)
     }
     

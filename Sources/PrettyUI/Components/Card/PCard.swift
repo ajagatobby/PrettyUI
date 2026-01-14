@@ -21,25 +21,6 @@ public enum PCardVariant: String, Equatable, Sendable, CaseIterable {
     case flat
 }
 
-// MARK: - Card Button Style
-
-/// ButtonStyle for pressable cards that handles press animations.
-/// Using Button instead of DragGesture ensures proper scroll gesture coordination.
-@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-fileprivate struct PCardButtonStyle: ButtonStyle {
-    let reduceMotion: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1.0)
-            .opacity(configuration.isPressed ? 0.95 : 1.0)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7),
-                value: configuration.isPressed
-            )
-    }
-}
-
 // MARK: - PCard
 
 /// A customizable card component that uses PrettyUI theme tokens
@@ -99,6 +80,7 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
     
     // MARK: - State
     
+    @State private var isPressed = false
     @State private var isHovered = false
     
     // MARK: - Properties
@@ -181,6 +163,17 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
         return config.borderWidth
     }
     
+    // MARK: - Animation
+    
+    private var pressAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7, blendDuration: 0)
+    }
+    
+    private var scaleEffect: CGFloat {
+        guard isPressable && !reduceMotion else { return 1 }
+        return isPressed ? 0.97 : 1.0
+    }
+    
     // MARK: - Initializers
     
     /// Create a card with content, optional header, and optional footer
@@ -242,14 +235,21 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
     // MARK: - Body
     
     public var body: some View {
-        if isPressable {
-            Button {
-                triggerHaptic()
-                action?()
-            } label: {
-                cardContent
+        cardContent
+            .scaleEffect(scaleEffect)
+            .animation(pressAnimation, value: isPressed)
+            .if(isPressable) { view in
+                view.simultaneousGesture(
+                    DragGesture(minimumDistance: 0)
+                        .onChanged { _ in
+                            if !isPressed { isPressed = true }
+                        }
+                        .onEnded { _ in
+                            isPressed = false
+                            action?()
+                        }
+                )
             }
-            .buttonStyle(PCardButtonStyle(reduceMotion: reduceMotion))
             #if os(macOS)
             .onHover { hovering in
                 withAnimation(.easeInOut(duration: 0.15)) {
@@ -257,25 +257,6 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
                 }
             }
             #endif
-        } else {
-            cardContent
-            #if os(macOS)
-                .onHover { hovering in
-                    withAnimation(.easeInOut(duration: 0.15)) {
-                        isHovered = hovering
-                    }
-                }
-            #endif
-        }
-    }
-    
-    // MARK: - Haptic Feedback
-    
-    private func triggerHaptic() {
-        #if os(iOS)
-        let generator = UIImpactFeedbackGenerator(style: .light)
-        generator.impactOccurred()
-        #endif
     }
     
     @ViewBuilder
@@ -318,7 +299,11 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
     
     @ViewBuilder
     private var cardBackground: some View {
-        colors.card
+        if isPressed && isPressable {
+            colors.card.opacity(0.95)
+        } else {
+            colors.card
+        }
     }
 }
 
