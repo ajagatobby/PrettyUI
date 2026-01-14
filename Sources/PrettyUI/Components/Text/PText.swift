@@ -821,25 +821,37 @@ struct PText_Previews: PreviewProvider {
                         .foregroundColor(.gray)
                     
                     VStack(alignment: .leading, spacing: 12) {
-                        PText("Rounded Design")
-                            .fontDesign(.rounded)
-                            .fontSize(24)
-                            .fontWeight(.semibold)
+                        // Using .fontWeight()
+                        PText("Bold with .fontWeight(.bold)")
+                            .fontWeight(.bold)
                         
+                        // Using .weight()
+                        PText("Heavy with .weight(.heavy)")
+                            .weight(.heavy)
+                        
+                        // Using .fontDesign()
+                        PText("Rounded with .fontDesign(.rounded)")
+                            .fontDesign(.rounded)
+                            .fontSize(20)
+                        
+                        // Using .fontDesign() with .fontWeight()
+                        PText("Rounded + Bold")
+                            .fontDesign(.rounded)
+                            .fontWeight(.bold)
+                            .fontSize(22)
+                        
+                        // Serif design
                         PText("Serif Design")
                             .fontDesign(.serif)
                             .fontSize(20)
                         
-                        PText("System Font Helper")
-                            .systemFont(size: 28, weight: .semibold, design: .rounded)
+                        // Using .systemFont() convenience
+                        PText("systemFont(size:weight:design:)")
+                            .systemFont(size: 24, weight: .semibold, design: .rounded)
                         
-                        PText("Custom Size with Style")
-                            .style(.headline)
-                            .fontSize(32)
-                            .fontDesign(.rounded)
-                        
-                        PText("Font Weight Modifier")
-                            .fontWeight(.heavy)
+                        // Using .font() directly (always works)
+                        PText(".font(.system(...))")
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
                     }
                 }
                 
