@@ -10,6 +10,14 @@
 
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
+#if canImport(AppKit)
+import AppKit
+#endif
+
 // MARK: - Tooltip Position
 
 /// Position options for PTooltip arrow
@@ -678,7 +686,7 @@ public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
     var config: PTooltipConfiguration
     @ViewBuilder var tooltipContent: () -> TooltipContent
     
-    @State private var anchorSize: CGSize = .zero
+    @State private var anchorFrame: CGRect = .zero
     @State private var tooltipSize: CGSize = .zero
     
     public func body(content: Content) -> some View {
@@ -686,53 +694,71 @@ public struct PTooltipModifier<TooltipContent: View>: ViewModifier {
             .background(
                 GeometryReader { geo in
                     Color.clear
-                        .onAppear { anchorSize = geo.size }
-                        .onChange(of: geo.size) { anchorSize = $0 }
+                        .onAppear { anchorFrame = geo.frame(in: .global) }
+                        .onChange(of: geo.frame(in: .global)) { anchorFrame = $0 }
                 }
             )
             .overlay {
                 if isPresented {
-                    PTooltipInlineOverlay(
-                        isPresented: $isPresented,
-                        config: config,
-                        tooltipContent: tooltipContent
-                    )
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear
-                                .onAppear { tooltipSize = geo.size }
-                                .onChange(of: geo.size) { tooltipSize = $0 }
-                        }
-                    )
-                    .offset(calculateOffset())
+                    GeometryReader { geo in
+                        PTooltipInlineOverlay(
+                            isPresented: $isPresented,
+                            config: config,
+                            tooltipContent: tooltipContent
+                        )
+                        .background(
+                            GeometryReader { tooltipGeo in
+                                Color.clear
+                                    .onAppear { tooltipSize = tooltipGeo.size }
+                                    .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
+                            }
+                        )
+                        .position(calculateGlobalPosition())
+                        .frame(width: screenSize.width, height: screenSize.height)
+                        .position(
+                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
+                            y: screenSize.height / 2 - geo.frame(in: .global).minY
+                        )
+                    }
                 }
             }
     }
     
-    /// Calculate the offset to position tooltip outside the anchor
-    private func calculateOffset() -> CGSize {
+    private var screenSize: CGSize {
+        #if os(iOS) || os(tvOS)
+        return UIScreen.main.bounds.size
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
+        #else
+        return .zero
+        #endif
+    }
+    
+    /// Calculate the global position for the tooltip
+    private func calculateGlobalPosition() -> CGPoint {
         let gap = config.offset
+        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
         
         switch config.position {
         case .top:
             // Position tooltip above anchor
-            let y = -(anchorSize.height / 2) - (tooltipSize.height / 2) - gap
-            return CGSize(width: 0, height: y)
+            let y = anchorFrame.minY - (tooltipSize.height / 2) - gap
+            return CGPoint(x: anchorCenter.x, y: y)
             
         case .bottom:
             // Position tooltip below anchor
-            let y = (anchorSize.height / 2) + (tooltipSize.height / 2) + gap
-            return CGSize(width: 0, height: y)
+            let y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
+            return CGPoint(x: anchorCenter.x, y: y)
             
         case .leading:
             // Position tooltip to the left of anchor
-            let x = -(anchorSize.width / 2) - (tooltipSize.width / 2) - gap
-            return CGSize(width: x, height: 0)
+            let x = anchorFrame.minX - (tooltipSize.width / 2) - gap
+            return CGPoint(x: x, y: anchorCenter.y)
             
         case .trailing:
             // Position tooltip to the right of anchor
-            let x = (anchorSize.width / 2) + (tooltipSize.width / 2) + gap
-            return CGSize(width: x, height: 0)
+            let x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
+            return CGPoint(x: x, y: anchorCenter.y)
         }
     }
 }
@@ -844,7 +870,7 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
     @State private var isPresented = false
     @State private var isHovering = false
     @State private var showWorkItem: DispatchWorkItem?
-    @State private var anchorSize: CGSize = .zero
+    @State private var anchorFrame: CGRect = .zero
     @State private var tooltipSize: CGSize = .zero
     
     /// The delay before showing the tooltip
@@ -862,8 +888,8 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
             .background(
                 GeometryReader { geo in
                     Color.clear
-                        .onAppear { anchorSize = geo.size }
-                        .onChange(of: geo.size) { anchorSize = $0 }
+                        .onAppear { anchorFrame = geo.frame(in: .global) }
+                        .onChange(of: geo.frame(in: .global)) { anchorFrame = $0 }
                 }
             )
             // Hover support (macOS and iOS with pointer)
@@ -911,20 +937,27 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
             #endif
             .overlay {
                 if isPresented {
-                    PTooltipInlineOverlay(
-                        isPresented: $isPresented,
-                        config: config,
-                        tooltipContent: tooltipContent
-                    )
-                    .background(
-                        GeometryReader { geo in
-                            Color.clear
-                                .onAppear { tooltipSize = geo.size }
-                                .onChange(of: geo.size) { tooltipSize = $0 }
-                        }
-                    )
-                    .offset(calculateOffset())
-                    .allowsHitTesting(false)
+                    GeometryReader { geo in
+                        PTooltipInlineOverlay(
+                            isPresented: $isPresented,
+                            config: config,
+                            tooltipContent: tooltipContent
+                        )
+                        .background(
+                            GeometryReader { tooltipGeo in
+                                Color.clear
+                                    .onAppear { tooltipSize = tooltipGeo.size }
+                                    .onChange(of: tooltipGeo.size) { tooltipSize = $0 }
+                            }
+                        )
+                        .position(calculateGlobalPosition())
+                        .allowsHitTesting(false)
+                        .frame(width: screenSize.width, height: screenSize.height)
+                        .position(
+                            x: screenSize.width / 2 - geo.frame(in: .global).minX,
+                            y: screenSize.height / 2 - geo.frame(in: .global).minY
+                        )
+                    }
                 }
             }
             // Tap anywhere to dismiss on iOS
@@ -939,30 +972,41 @@ public struct PTooltipHoverModifier<TooltipContent: View>: ViewModifier {
             #endif
     }
     
-    /// Calculate the offset to position tooltip outside the anchor
-    private func calculateOffset() -> CGSize {
+    private var screenSize: CGSize {
+        #if os(iOS) || os(tvOS)
+        return UIScreen.main.bounds.size
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
+        #else
+        return .zero
+        #endif
+    }
+    
+    /// Calculate the global position for the tooltip
+    private func calculateGlobalPosition() -> CGPoint {
         let gap = config.offset
+        let anchorCenter = CGPoint(x: anchorFrame.midX, y: anchorFrame.midY)
         
         switch config.position {
         case .top:
             // Position tooltip above anchor
-            let y = -(anchorSize.height / 2) - (tooltipSize.height / 2) - gap
-            return CGSize(width: 0, height: y)
+            let y = anchorFrame.minY - (tooltipSize.height / 2) - gap
+            return CGPoint(x: anchorCenter.x, y: y)
             
         case .bottom:
             // Position tooltip below anchor
-            let y = (anchorSize.height / 2) + (tooltipSize.height / 2) + gap
-            return CGSize(width: 0, height: y)
+            let y = anchorFrame.maxY + (tooltipSize.height / 2) + gap
+            return CGPoint(x: anchorCenter.x, y: y)
             
         case .leading:
             // Position tooltip to the left of anchor
-            let x = -(anchorSize.width / 2) - (tooltipSize.width / 2) - gap
-            return CGSize(width: x, height: 0)
+            let x = anchorFrame.minX - (tooltipSize.width / 2) - gap
+            return CGPoint(x: x, y: anchorCenter.y)
             
         case .trailing:
             // Position tooltip to the right of anchor
-            let x = (anchorSize.width / 2) + (tooltipSize.width / 2) + gap
-            return CGSize(width: x, height: 0)
+            let x = anchorFrame.maxX + (tooltipSize.width / 2) + gap
+            return CGPoint(x: x, y: anchorCenter.y)
         }
     }
 }

@@ -11,6 +11,14 @@
 
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
+#if canImport(AppKit)
+import AppKit
+#endif
+
 // MARK: - Popover Position
 
 /// Position options for PPopover relative to anchor
@@ -334,7 +342,14 @@ public struct PPopoverRootModifier: ViewModifier {
         content
             .overlay {
                 if popoverHolder.isPresented {
-                    popoverOverlay
+                    GeometryReader { geo in
+                        popoverOverlay
+                            .frame(width: screenSize.width, height: screenSize.height)
+                            .position(
+                                x: screenSize.width / 2 - geo.frame(in: .global).minX,
+                                y: screenSize.height / 2 - geo.frame(in: .global).minY
+                            )
+                    }
                 }
             }
             .onChange(of: popoverHolder.isPresented) { newValue in
@@ -347,6 +362,16 @@ public struct PPopoverRootModifier: ViewModifier {
                     performDismissAnimation()
                 }
             }
+    }
+    
+    private var screenSize: CGSize {
+        #if os(iOS) || os(tvOS)
+        return UIScreen.main.bounds.size
+        #elseif os(macOS)
+        return NSApplication.shared.keyWindow?.contentView?.bounds.size ?? NSScreen.main?.visibleFrame.size ?? .zero
+        #else
+        return .zero
+        #endif
     }
     
     // MARK: - Popover Overlay
