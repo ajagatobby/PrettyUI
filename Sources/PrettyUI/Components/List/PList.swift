@@ -180,10 +180,6 @@ public struct PListItem<Leading: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
-    // MARK: - State
-    
-    @State private var isPressed = false
-    
     // MARK: - Properties
     
     private let title: String
@@ -207,10 +203,6 @@ public struct PListItem<Leading: View>: View {
     
     private var titleColor: Color {
         isDestructive ? colors.destructive : colors.foreground
-    }
-    
-    private var pressAnimation: Animation? {
-        reduceMotion ? nil : .easeInOut(duration: 0.1)
     }
     
     private var hasAction: Bool {
@@ -263,50 +255,15 @@ public struct PListItem<Leading: View>: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: theme.spacing.md) {
-                // Leading content (icon or custom view)
-                if let leading = leading {
-                    leading
-                } else if let icon = icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 20))
-                        .foregroundColor(iconColor ?? colors.primary)
-                        .frame(width: 28, height: 28)
+            if hasAction {
+                Button {
+                    action?()
+                } label: {
+                    itemContent
                 }
-                
-                // Title and subtitle
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.system(size: theme.typography.sizes.base))
-                        .foregroundColor(titleColor)
-                    
-                    if let subtitle = subtitle {
-                        Text(subtitle)
-                            .font(.system(size: theme.typography.sizes.sm))
-                            .foregroundColor(colors.mutedForeground)
-                    }
-                }
-                
-                Spacer()
-                
-                // Trailing accessory
-                trailingAccessory
-            }
-            .padding(.horizontal, theme.spacing.md)
-            .padding(.vertical, theme.spacing.sm + 2)
-            .background(backgroundColor)
-            .contentShape(Rectangle())
-            .if(hasAction) { view in
-                view.simultaneousGesture(
-                    DragGesture(minimumDistance: 0)
-                        .onChanged { _ in
-                            if !isPressed { isPressed = true }
-                        }
-                        .onEnded { _ in
-                            isPressed = false
-                            action?()
-                        }
-                )
+                .buttonStyle(PListItemButtonStyle(colors: colors, reduceMotion: reduceMotion))
+            } else {
+                itemContent
             }
             
             // Divider
@@ -314,16 +271,42 @@ public struct PListItem<Leading: View>: View {
                 divider
             }
         }
-        .animation(pressAnimation, value: isPressed)
     }
     
     @ViewBuilder
-    private var backgroundColor: some View {
-        if isPressed && hasAction {
-            colors.muted.opacity(0.5)
-        } else {
-            Color.clear
+    private var itemContent: some View {
+        HStack(spacing: theme.spacing.md) {
+            // Leading content (icon or custom view)
+            if let leading = leading {
+                leading
+            } else if let icon = icon {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(iconColor ?? colors.primary)
+                    .frame(width: 28, height: 28)
+            }
+            
+            // Title and subtitle
+            VStack(alignment: .leading, spacing: 2) {
+                Text(title)
+                    .font(.system(size: theme.typography.sizes.base))
+                    .foregroundColor(titleColor)
+                
+                if let subtitle = subtitle {
+                    Text(subtitle)
+                        .font(.system(size: theme.typography.sizes.sm))
+                        .foregroundColor(colors.mutedForeground)
+                }
+            }
+            
+            Spacer()
+            
+            // Trailing accessory
+            trailingAccessory
         }
+        .padding(.horizontal, theme.spacing.md)
+        .padding(.vertical, theme.spacing.sm + 2)
+        .contentShape(Rectangle())
     }
     
     @ViewBuilder
@@ -622,6 +605,24 @@ public struct PListToggleItem: View {
         var item = self
         item.dividerStyle = style
         return item
+    }
+}
+
+// MARK: - List Item Button Style
+
+/// A custom button style for list items that works well with scroll views
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+private struct PListItemButtonStyle: ButtonStyle {
+    let colors: ColorTokens
+    let reduceMotion: Bool
+    
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .background(configuration.isPressed ? colors.muted.opacity(0.5) : Color.clear)
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 0.1),
+                value: configuration.isPressed
+            )
     }
 }
 
