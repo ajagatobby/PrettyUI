@@ -1123,7 +1123,7 @@ public extension View {
 struct PToast_Previews: PreviewProvider {
     static var previews: some View {
         PToastPreviewContainer()
-            .prettyTheme(.family)
+            .prettyTheme(.sky)
             .previewDisplayName("Toast Demo")
     }
 }
@@ -1288,7 +1288,7 @@ struct PToast_Dark_Previews: PreviewProvider {
         }
         .padding()
         .background(Color(hex: "#0D0D0D"))
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .preferredColorScheme(.dark)
         .previewDisplayName("Dark Mode Variants")
     }

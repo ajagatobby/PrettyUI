@@ -115,7 +115,7 @@ struct ContentView: View {
 
 ```swift
 .prettyTheme(.default)   // Neutral grayscale
-.prettyTheme(.sky)       // Vibrant cyan-blue (recommended)
+.prettyTheme(.sky)       // Vibrant cyan-blue
 .prettyTheme(.indigo)    // Purple/indigo accent
 .prettyTheme(.emerald)   // Teal/green accent
 .prettyTheme(.amber)     // Orange/amber accent

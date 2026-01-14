@@ -467,7 +467,7 @@ struct PIconButton_Previews: PreviewProvider {
             .padding(20)
         }
         .background(Color(hex: "#F8F9FA"))
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .previewDisplayName("Icon Buttons")
     }
 }

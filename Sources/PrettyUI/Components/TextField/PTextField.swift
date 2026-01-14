@@ -1011,13 +1011,13 @@ struct PTextField_Previews: PreviewProvider {
     
     static var previews: some View {
         PreviewWrapper()
-            .prettyTheme(.family)
-            .previewDisplayName("Light Mode - Family Theme")
+            .prettyTheme(.sky)
+            .previewDisplayName("Light Mode - Sky Theme")
         
         PreviewWrapper()
-            .prettyTheme(.family)
+            .prettyTheme(.sky)
             .preferredColorScheme(.dark)
-            .previewDisplayName("Dark Mode - Family Theme")
+            .previewDisplayName("Dark Mode - Sky Theme")
     }
 }
 #endif

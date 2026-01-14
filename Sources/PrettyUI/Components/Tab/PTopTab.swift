@@ -1146,19 +1146,19 @@ struct PTopTab_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             SegmentedPreview()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
                 .previewDisplayName("Segmented")
             
             PillsPreview()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
                 .previewDisplayName("Pills with Icons")
             
             IconOnlyPreview()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
                 .previewDisplayName("Icon Only")
             
             UnderlinePreview()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
                 .previewDisplayName("Underline")
         }
     }

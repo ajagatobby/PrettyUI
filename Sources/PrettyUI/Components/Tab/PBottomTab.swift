@@ -962,11 +962,11 @@ struct PBottomTab_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             StandardPreview()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
                 .previewDisplayName("Standard")
             
             FloatingPreview()
-                .prettyTheme(.family)
+                .prettyTheme(.sky)
                 .previewDisplayName("Floating")
         }
     }

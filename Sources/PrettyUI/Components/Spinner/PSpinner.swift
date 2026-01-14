@@ -678,7 +678,7 @@ struct PSpinner_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .previewDisplayName("Light Mode")
         
         VStack(spacing: 40) {
@@ -702,7 +702,7 @@ struct PSpinner_Previews: PreviewProvider {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(Color(hex: "#0D0D0D"))
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .preferredColorScheme(.dark)
         .previewDisplayName("Dark Mode")
     }

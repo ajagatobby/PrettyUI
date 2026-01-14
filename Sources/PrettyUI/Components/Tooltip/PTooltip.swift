@@ -1152,7 +1152,7 @@ public struct PTooltipRichContent: View {
 struct PTooltip_Previews: PreviewProvider {
     static var previews: some View {
         PTooltipPreviewContainer()
-            .prettyTheme(.family)
+            .prettyTheme(.sky)
             .previewDisplayName("Tooltip Demo")
     }
 }

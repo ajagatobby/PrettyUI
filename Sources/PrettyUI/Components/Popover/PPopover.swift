@@ -282,7 +282,7 @@ final class PPopoverContentHolder: ObservableObject {
 /// Apply this modifier at the root of your app:
 /// ```swift
 /// ContentView()
-///     .prettyTheme(.family)
+///     .prettyTheme(.sky)
 ///     .pPopoverRoot()
 /// ```
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
@@ -975,7 +975,7 @@ public extension View {
     ///     var body: some Scene {
     ///         WindowGroup {
     ///             ContentView()
-    ///                 .prettyTheme(.family)
+    ///                 .prettyTheme(.sky)
     ///                 .pPopoverRoot()
     ///         }
     ///     }
@@ -1118,7 +1118,7 @@ public struct PPopoverMenuDivider: View {
 struct PPopover_Previews: PreviewProvider {
     static var previews: some View {
         PPopoverPreviewContainer()
-            .prettyTheme(.family)
+            .prettyTheme(.sky)
             .pPopoverRoot()  // Required at root for popovers to render above all content
             .previewDisplayName("Popover Demo")
     }

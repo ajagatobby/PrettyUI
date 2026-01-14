@@ -687,8 +687,8 @@ struct PCard_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
-        .previewDisplayName("Light Mode - Family Theme")
+        .prettyTheme(.sky)
+        .previewDisplayName("Light Mode - Sky Theme")
         
         ScrollView {
             VStack(spacing: 24) {
@@ -718,9 +718,9 @@ struct PCard_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .preferredColorScheme(.dark)
-        .previewDisplayName("Dark Mode - Family Theme")
+        .previewDisplayName("Dark Mode - Sky Theme")
     }
 }
 #endif

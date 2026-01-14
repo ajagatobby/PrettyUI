@@ -549,7 +549,7 @@ struct PSkeleton_Previews: PreviewProvider {
             .padding()
         }
         .background(Color(hex: "#EEEEEE10"))
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .previewDisplayName("Light Mode")
         
         ScrollView {
@@ -568,7 +568,7 @@ struct PSkeleton_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .preferredColorScheme(.dark)
         .previewDisplayName("Dark Mode")
     }

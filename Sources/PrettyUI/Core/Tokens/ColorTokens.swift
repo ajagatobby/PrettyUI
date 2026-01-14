@@ -191,13 +191,13 @@ extension ColorTokens {
     )
 }
 
-// MARK: - Family Theme Colors
+// MARK: - Sky Theme Colors
 
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 extension ColorTokens {
     
-    /// Family.co inspired light theme with vibrant cyan-blue primary
-    public static let familyLight = ColorTokens(
+    /// Sky light theme with vibrant cyan-blue primary
+    public static let skyLight = ColorTokens(
         primary: Color(hex: "#1DA1F2"),
         primaryForeground: Color(hex: "#FFFFFF"),
         secondary: Color(hex: "#F4F4F5"),
@@ -221,8 +221,8 @@ extension ColorTokens {
         ring: Color(hex: "#1DA1F2")
     )
     
-    /// Family.co inspired dark theme
-    public static let familyDark = ColorTokens(
+    /// Sky dark theme
+    public static let skyDark = ColorTokens(
         primary: Color(hex: "#1DA1F2"),
         primaryForeground: Color(hex: "#FFFFFF"),
         secondary: Color(hex: "#2C2C2E"),

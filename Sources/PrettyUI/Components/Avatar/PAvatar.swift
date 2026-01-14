@@ -854,7 +854,7 @@ struct PAvatar_Previews: PreviewProvider {
             .padding()
         }
         .background(Color(hex: "#F8F9FA"))
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .previewDisplayName("Light Mode")
         
         ScrollView {
@@ -873,7 +873,7 @@ struct PAvatar_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .preferredColorScheme(.dark)
         .previewDisplayName("Dark Mode")
     }

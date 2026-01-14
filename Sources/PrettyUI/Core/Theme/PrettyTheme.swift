@@ -106,14 +106,14 @@ public struct PrettyTheme: Equatable, Sendable {
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 extension PrettyTheme {
     
-    /// Family.co inspired theme with vibrant cyan-blue, soft shadows, and friendly aesthetics
+    /// Sky theme with vibrant cyan-blue, soft shadows, and friendly aesthetics
     ///
-    /// This theme captures Family's design language:
+    /// This theme features:
     /// - Vibrant cyan-blue primary color (#1DA1F2)
     /// - Soft, light backgrounds
     /// - Generous spacing and pill-shaped buttons
     /// - Smooth spring animations
-    public static let family = PrettyTheme(
+    public static let sky = PrettyTheme(
         colors: ColorTokens(
             // Primary - Vibrant cyan-blue for CTAs
             primary: Color(hex: "#1DA1F2"),

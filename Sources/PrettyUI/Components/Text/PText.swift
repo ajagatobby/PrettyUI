@@ -780,7 +780,7 @@ struct PText_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .previewDisplayName("Light Mode")
         
         ScrollView {
@@ -805,7 +805,7 @@ struct PText_Previews: PreviewProvider {
             }
             .padding()
         }
-        .prettyTheme(.family)
+        .prettyTheme(.sky)
         .preferredColorScheme(.dark)
         .previewDisplayName("Dark Mode")
     }

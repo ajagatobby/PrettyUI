@@ -1005,7 +1005,7 @@ struct PModalAlertContent: View {
 struct PModal_Previews: PreviewProvider {
     static var previews: some View {
         PModalPreviewContainer()
-            .prettyTheme(.family)
+            .prettyTheme(.sky)
             .previewDisplayName("Modal Demo")
     }
 }

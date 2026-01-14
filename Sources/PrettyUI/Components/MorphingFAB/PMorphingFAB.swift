@@ -464,13 +464,13 @@ public extension PExpandableFAB where ExpandedContent == EmptyView {
 struct PExpandableFAB_Previews: PreviewProvider {
     static var previews: some View {
         PExpandableFABPreviewContainer()
-            .prettyTheme(.family)
-            .previewDisplayName("Light Mode - Family Theme")
+            .prettyTheme(.sky)
+            .previewDisplayName("Light Mode - Sky Theme")
         
         PExpandableFABPreviewContainer()
-            .prettyTheme(.family)
+            .prettyTheme(.sky)
             .preferredColorScheme(.dark)
-            .previewDisplayName("Dark Mode - Family Theme")
+            .previewDisplayName("Dark Mode - Sky Theme")
     }
 }
 
