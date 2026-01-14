@@ -26,6 +26,7 @@ public struct ComponentConfigs: Equatable, Sendable {
     public var tab: TabConfig
     public var accordion: AccordionConfig
     public var popover: PopoverConfig
+    public var sidebar: SidebarConfig
     
     public init(
         button: ButtonConfig = .default,
@@ -43,7 +44,8 @@ public struct ComponentConfigs: Equatable, Sendable {
         toast: ToastConfig = .default,
         tab: TabConfig = .default,
         accordion: AccordionConfig = .default,
-        popover: PopoverConfig = .default
+        popover: PopoverConfig = .default,
+        sidebar: SidebarConfig = .default
     ) {
         self.button = button
         self.iconButton = iconButton
@@ -61,6 +63,7 @@ public struct ComponentConfigs: Equatable, Sendable {
         self.tab = tab
         self.accordion = accordion
         self.popover = popover
+        self.sidebar = sidebar
     }
     
     public static let `default` = ComponentConfigs()
@@ -951,5 +954,117 @@ public enum PPopoverStyleConfig: String, Equatable, Sendable, CaseIterable {
     case light
     /// Dark inverted background
     case dark
+}
+
+// MARK: - Sidebar Config
+
+/// Configuration for sidebar menu presentation
+///
+/// Family.co-inspired sidebar with smooth spring animations, gesture-based dismissal,
+/// and flexible content structure supporting headers, navigation items, and footers.
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+public struct SidebarConfig: Equatable, Sendable {
+    /// Default sidebar position (leading or trailing edge)
+    public var defaultPosition: PSidebarPositionConfig
+    
+    /// Default sidebar style (full height or floating card)
+    public var defaultStyle: PSidebarStyleConfig
+    
+    /// Width of the sidebar panel
+    public var width: CGFloat
+    
+    /// Border radius for floating style (Family guidelines: xxl = 28pt)
+    public var radius: RadiusSize
+    
+    /// Content padding inside the sidebar
+    public var contentPadding: SpacingSize
+    
+    /// Margin from screen edge for floating style
+    public var floatingMargin: CGFloat
+    
+    /// Whether tapping the backdrop dismisses the sidebar
+    public var dismissOnBackgroundTap: Bool
+    
+    /// Backdrop opacity (0.0-1.0)
+    public var backdropOpacity: Double
+    
+    /// Whether to enable drag-to-dismiss gesture
+    public var enableDragToDismiss: Bool
+    
+    /// Drag threshold to trigger dismiss (in points)
+    public var dragDismissThreshold: CGFloat
+    
+    /// Spring animation response time for panel entry
+    public var springResponse: Double
+    
+    /// Spring animation damping fraction for panel entry
+    public var springDamping: Double
+    
+    /// Exit animation duration
+    public var exitAnimationDuration: Double
+    
+    /// Stagger delay between menu items (in seconds)
+    public var itemStaggerDelay: Double
+    
+    /// Shadow size for floating style
+    public var shadow: ShadowSize
+    
+    /// Whether to provide haptic feedback on open/close
+    public var hapticFeedback: Bool
+    
+    public init(
+        defaultPosition: PSidebarPositionConfig = .leading,
+        defaultStyle: PSidebarStyleConfig = .fullHeight,
+        width: CGFloat = 300,
+        radius: RadiusSize = .xxl,
+        contentPadding: SpacingSize = .lg,
+        floatingMargin: CGFloat = 16,
+        dismissOnBackgroundTap: Bool = true,
+        backdropOpacity: Double = 0.5,
+        enableDragToDismiss: Bool = true,
+        dragDismissThreshold: CGFloat = 100,
+        springResponse: Double = 0.35,
+        springDamping: Double = 0.75,
+        exitAnimationDuration: Double = 0.2,
+        itemStaggerDelay: Double = 0.05,
+        shadow: ShadowSize = .xl,
+        hapticFeedback: Bool = true
+    ) {
+        self.defaultPosition = defaultPosition
+        self.defaultStyle = defaultStyle
+        self.width = width
+        self.radius = radius
+        self.contentPadding = contentPadding
+        self.floatingMargin = floatingMargin
+        self.dismissOnBackgroundTap = dismissOnBackgroundTap
+        self.backdropOpacity = backdropOpacity
+        self.enableDragToDismiss = enableDragToDismiss
+        self.dragDismissThreshold = dragDismissThreshold
+        self.springResponse = springResponse
+        self.springDamping = springDamping
+        self.exitAnimationDuration = exitAnimationDuration
+        self.itemStaggerDelay = itemStaggerDelay
+        self.shadow = shadow
+        self.hapticFeedback = hapticFeedback
+    }
+    
+    /// Default Family-style sidebar configuration
+    public static let `default` = SidebarConfig()
+}
+
+/// Sidebar position configuration options
+public enum PSidebarPositionConfig: String, Equatable, Sendable, CaseIterable {
+    /// Sidebar slides in from the leading edge (left on LTR)
+    case leading
+    /// Sidebar slides in from the trailing edge (right on LTR)
+    case trailing
+}
+
+/// Sidebar style configuration options
+public enum PSidebarStyleConfig: String, Equatable, Sendable, CaseIterable {
+    /// Full height edge-to-edge sidebar (classic style)
+    case fullHeight
+    /// Floating card with rounded corners and margin
+    case floating
 }
 
