@@ -55,6 +55,67 @@ public enum PAvatarStatus: Equatable, Sendable {
     case none
 }
 
+// MARK: - Icon Badge Position
+
+/// Position options for icon badge overlay on avatar
+public enum PAvatarBadgePosition: String, Equatable, Sendable, CaseIterable {
+    case topLeading
+    case top
+    case topTrailing
+    case leading
+    case center
+    case trailing
+    case bottomLeading
+    case bottom
+    case bottomTrailing
+}
+
+// MARK: - Icon Badge Configuration
+
+/// Configuration for icon badge overlay on avatar
+public struct PAvatarIconBadge: Equatable, Sendable {
+    /// SF Symbol name for the icon
+    public var icon: String
+    /// Position of the badge
+    public var position: PAvatarBadgePosition
+    /// Icon color (defaults to primaryForeground)
+    public var iconColor: Color?
+    /// Background color (defaults to primary)
+    public var backgroundColor: Color?
+    /// Badge size (nil = auto-sized based on avatar size)
+    public var size: CGFloat?
+    /// Icon font size (nil = auto-sized based on badge size)
+    public var iconFont: Font?
+    /// Border color (defaults to card color)
+    public var borderColor: Color?
+    /// Border width (defaults to 2)
+    public var borderWidth: CGFloat
+    /// Inset/offset from avatar edge (defaults to 2)
+    public var inset: CGFloat
+    
+    public init(
+        icon: String,
+        position: PAvatarBadgePosition = .bottomTrailing,
+        iconColor: Color? = nil,
+        backgroundColor: Color? = nil,
+        size: CGFloat? = nil,
+        iconFont: Font? = nil,
+        borderColor: Color? = nil,
+        borderWidth: CGFloat = 2,
+        inset: CGFloat = 2
+    ) {
+        self.icon = icon
+        self.position = position
+        self.iconColor = iconColor
+        self.backgroundColor = backgroundColor
+        self.size = size
+        self.iconFont = iconFont
+        self.borderColor = borderColor
+        self.borderWidth = borderWidth
+        self.inset = inset
+    }
+}
+
 // MARK: - PAvatar
 
 /// A versatile avatar component inspired by Family.co
@@ -117,6 +178,7 @@ public struct PAvatar: View {
     private var foregroundColor: Color? = nil
     private var badgeCount: Int? = nil
     private var badgeColor: Color? = nil
+    private var iconBadge: PAvatarIconBadge? = nil
     
     // MARK: - Computed Properties
     
@@ -181,6 +243,38 @@ public struct PAvatar: View {
         case .md: return 16
         case .lg: return 18
         case .xl: return 20
+        }
+    }
+    
+    /// Default badge size based on avatar size
+    private var defaultIconBadgeSize: CGFloat {
+        switch avatarSize {
+        case .xs: return 12
+        case .sm: return 16
+        case .md: return 20
+        case .lg: return 24
+        case .xl: return 28
+        }
+    }
+    
+    /// Resolved icon badge size (custom or default)
+    private var iconBadgeSize: CGFloat {
+        iconBadge?.size ?? defaultIconBadgeSize
+    }
+    
+    /// Icon size calculated as ~45% of badge size for proper proportions
+    private var iconBadgeFontSize: CGFloat {
+        // If user specified a custom badge size, calculate icon proportionally
+        if let badge = iconBadge, badge.size != nil {
+            return badge.size! * 0.45
+        }
+        // Default sizes based on avatar size
+        switch avatarSize {
+        case .xs: return 5
+        case .sm: return 7
+        case .md: return 9
+        case .lg: return 11
+        case .xl: return 13
         }
     }
     
@@ -255,7 +349,8 @@ public struct PAvatar: View {
         backgroundColor: Color?,
         foregroundColor: Color?,
         badgeCount: Int?,
-        badgeColor: Color?
+        badgeColor: Color?,
+        iconBadge: PAvatarIconBadge?
     ) {
         self.url = url
         self.image = image
@@ -271,12 +366,13 @@ public struct PAvatar: View {
         self.foregroundColor = foregroundColor
         self.badgeCount = badgeCount
         self.badgeColor = badgeColor
+        self.iconBadge = iconBadge
     }
     
     // MARK: - Body
     
     public var body: some View {
-        ZStack(alignment: .bottomTrailing) {
+        ZStack {
             avatarContent
                 .frame(width: dimension, height: dimension)
                 .clipShape(RoundedRectangle(cornerRadius: avatarCornerRadius))
@@ -288,15 +384,74 @@ public struct PAvatar: View {
             // Status indicator
             if status != .none {
                 statusIndicator
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .offset(x: 2, y: 2)
             }
             
-            // Badge
+            // Badge count
             if let count = badgeCount, count > 0 {
                 badgeView(count: count)
-                    .offset(x: 4, y: -dimension * 0.6)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                    .offset(x: 4, y: -4)
+            }
+            
+            // Icon badge
+            if let badge = iconBadge {
+                iconBadgeView(badge: badge)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: iconBadgeAlignment(for: badge.position))
+                    .offset(iconBadgeOffset(for: badge.position, inset: badge.inset))
             }
         }
+        .frame(width: dimension + 8, height: dimension + 8) // Extra space for badge overflow
+    }
+    
+    private func iconBadgeAlignment(for position: PAvatarBadgePosition) -> Alignment {
+        switch position {
+        case .topLeading: return .topLeading
+        case .top: return .top
+        case .topTrailing: return .topTrailing
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        case .bottomLeading: return .bottomLeading
+        case .bottom: return .bottom
+        case .bottomTrailing: return .bottomTrailing
+        }
+    }
+    
+    private func iconBadgeOffset(for position: PAvatarBadgePosition, inset: CGFloat) -> CGSize {
+        // The ZStack has 4px extra padding on each side (dimension + 8)
+        // Offsets move the badge inward to overlap the avatar edge
+        switch position {
+        case .topLeading: return CGSize(width: inset, height: inset)
+        case .top: return CGSize(width: 0, height: inset)
+        case .topTrailing: return CGSize(width: -inset, height: inset)
+        case .leading: return CGSize(width: inset, height: 0)
+        case .center: return .zero
+        case .trailing: return CGSize(width: -inset, height: 0)
+        case .bottomLeading: return CGSize(width: inset, height: -inset)
+        case .bottom: return CGSize(width: 0, height: -inset)
+        case .bottomTrailing: return CGSize(width: -inset, height: -inset)
+        }
+    }
+    
+    @ViewBuilder
+    private func iconBadgeView(badge: PAvatarIconBadge) -> some View {
+        let resolvedBadgeSize = badge.size ?? defaultIconBadgeSize
+        let resolvedIconSize = badge.size != nil ? badge.size! * 0.45 : iconBadgeFontSize
+        
+        Circle()
+            .fill(badge.backgroundColor ?? colors.primary)
+            .frame(width: resolvedBadgeSize, height: resolvedBadgeSize)
+            .overlay(
+                Image(systemName: badge.icon)
+                    .font(badge.iconFont ?? .system(size: resolvedIconSize, weight: .medium))
+                    .foregroundStyle(badge.iconColor ?? colors.primaryForeground)
+            )
+            .overlay(
+                Circle()
+                    .stroke(badge.borderColor ?? colors.card, lineWidth: badge.borderWidth)
+            )
     }
     
     @ViewBuilder
@@ -421,7 +576,8 @@ extension PAvatar {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             badgeCount: badgeCount,
-            badgeColor: badgeColor
+            badgeColor: badgeColor,
+            iconBadge: iconBadge
         )
     }
     
@@ -441,7 +597,8 @@ extension PAvatar {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             badgeCount: badgeCount,
-            badgeColor: badgeColor
+            badgeColor: badgeColor,
+            iconBadge: iconBadge
         )
     }
     
@@ -461,7 +618,8 @@ extension PAvatar {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             badgeCount: badgeCount,
-            badgeColor: badgeColor
+            badgeColor: badgeColor,
+            iconBadge: iconBadge
         )
     }
     
@@ -481,7 +639,8 @@ extension PAvatar {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             badgeCount: badgeCount,
-            badgeColor: badgeColor
+            badgeColor: badgeColor,
+            iconBadge: iconBadge
         )
     }
     
@@ -501,7 +660,8 @@ extension PAvatar {
             backgroundColor: color,
             foregroundColor: foregroundColor,
             badgeCount: badgeCount,
-            badgeColor: badgeColor
+            badgeColor: badgeColor,
+            iconBadge: iconBadge
         )
     }
     
@@ -521,7 +681,8 @@ extension PAvatar {
             backgroundColor: backgroundColor,
             foregroundColor: color,
             badgeCount: badgeCount,
-            badgeColor: badgeColor
+            badgeColor: badgeColor,
+            iconBadge: iconBadge
         )
     }
     
@@ -541,7 +702,80 @@ extension PAvatar {
             backgroundColor: backgroundColor,
             foregroundColor: foregroundColor,
             badgeCount: count,
-            badgeColor: color
+            badgeColor: color,
+            iconBadge: iconBadge
+        )
+    }
+    
+    /// Add an icon badge overlay
+    /// - Parameters:
+    ///   - icon: SF Symbol name for the icon
+    ///   - position: Position of the badge (default: .bottomTrailing)
+    ///   - iconColor: Icon color (defaults to primaryForeground)
+    ///   - backgroundColor: Badge background color (defaults to primary)
+    ///   - size: Badge size (nil = auto-sized based on avatar size)
+    ///   - iconFont: Custom font for the icon
+    ///   - borderColor: Border color (defaults to card)
+    ///   - borderWidth: Border width (default: 2)
+    ///   - inset: Offset from avatar edge (default: 2, higher = more overlap with avatar)
+    public func iconBadge(
+        _ icon: String,
+        position: PAvatarBadgePosition = .bottomTrailing,
+        iconColor: Color? = nil,
+        backgroundColor: Color? = nil,
+        size: CGFloat? = nil,
+        iconFont: Font? = nil,
+        borderColor: Color? = nil,
+        borderWidth: CGFloat = 2,
+        inset: CGFloat = 2
+    ) -> PAvatar {
+        PAvatar(
+            url: url,
+            image: image,
+            name: name,
+            placeholder: placeholder,
+            avatarSize: avatarSize,
+            shape: shape,
+            status: status,
+            showBorder: showBorder,
+            borderColor: self.borderColor,
+            borderWidth: self.borderWidth,
+            backgroundColor: self.backgroundColor,
+            foregroundColor: foregroundColor,
+            badgeCount: badgeCount,
+            badgeColor: badgeColor,
+            iconBadge: PAvatarIconBadge(
+                icon: icon,
+                position: position,
+                iconColor: iconColor,
+                backgroundColor: backgroundColor,
+                size: size,
+                iconFont: iconFont,
+                borderColor: borderColor,
+                borderWidth: borderWidth,
+                inset: inset
+            )
+        )
+    }
+    
+    /// Add an icon badge with a pre-configured badge
+    public func iconBadge(_ badge: PAvatarIconBadge) -> PAvatar {
+        PAvatar(
+            url: url,
+            image: image,
+            name: name,
+            placeholder: placeholder,
+            avatarSize: avatarSize,
+            shape: shape,
+            status: status,
+            showBorder: showBorder,
+            borderColor: borderColor,
+            borderWidth: borderWidth,
+            backgroundColor: backgroundColor,
+            foregroundColor: foregroundColor,
+            badgeCount: badgeCount,
+            badgeColor: badgeColor,
+            iconBadge: badge
         )
     }
 }

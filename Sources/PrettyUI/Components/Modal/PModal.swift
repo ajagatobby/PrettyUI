@@ -143,6 +143,12 @@ public struct PModalConfiguration {
     public var backdropOpacity: Double = 0.5
     /// Overlay/backdrop style
     public var overlayStyle: PModalOverlayStyle = .dimmed
+    /// Custom top padding (for .top position)
+    public var topPadding: CGFloat? = nil
+    /// Custom bottom padding (for .bottom position)
+    public var bottomPadding: CGFloat? = nil
+    /// Custom horizontal padding
+    public var horizontalPadding: CGFloat = 16
     
     public init() {}
 }
@@ -358,13 +364,29 @@ struct PModalOverlay<Content: View>: View {
     
     /// Edge padding for top/bottom positions
     private var edgePadding: EdgeInsets {
+        let horizontal = config.horizontalPadding
         switch config.position {
         case .center:
-            return EdgeInsets()
+            return EdgeInsets(
+                top: config.topPadding ?? 0,
+                leading: horizontal,
+                bottom: config.bottomPadding ?? 0,
+                trailing: horizontal
+            )
         case .top:
-            return EdgeInsets(top: 16, leading: 16, bottom: 0, trailing: 16)
+            return EdgeInsets(
+                top: config.topPadding ?? 16,
+                leading: horizontal,
+                bottom: 0,
+                trailing: horizontal
+            )
         case .bottom:
-            return EdgeInsets(top: 0, leading: 16, bottom: 16, trailing: 16)
+            return EdgeInsets(
+                top: 0,
+                leading: horizontal,
+                bottom: config.bottomPadding ?? 16,
+                trailing: horizontal
+            )
         }
     }
     
@@ -821,13 +843,13 @@ public extension View {
     ///         }
     /// }
     ///
-    /// // Bottom position with blur overlay
-    /// .pModal(isPresented: $showModal, position: .bottom, overlay: .blurred()) {
+    /// // Bottom position with custom padding
+    /// .pModal(isPresented: $showModal, position: .bottom, bottomPadding: 32) {
     ///     // Content
     /// }
     ///
-    /// // Top position with dimmed blur
-    /// .pModal(isPresented: $showModal, position: .top, overlay: .dimmedBlur()) {
+    /// // Top position with custom padding
+    /// .pModal(isPresented: $showModal, position: .top, topPadding: 64) {
     ///     // Content
     /// }
     /// ```
@@ -836,12 +858,18 @@ public extension View {
         position: PModalPosition = .center,
         overlay: PModalOverlayStyle = .dimmed,
         dismissOnBackgroundTap: Bool = true,
+        topPadding: CGFloat? = nil,
+        bottomPadding: CGFloat? = nil,
+        horizontalPadding: CGFloat = 16,
         @ViewBuilder content: @escaping () -> Content
     ) -> some View {
         var config = PModalConfiguration()
         config.position = position
         config.overlayStyle = overlay
         config.dismissOnBackgroundTap = dismissOnBackgroundTap
+        config.topPadding = topPadding
+        config.bottomPadding = bottomPadding
+        config.horizontalPadding = horizontalPadding
         return modifier(
             PModalModifier(
                 isPresented: isPresented,
@@ -869,11 +897,11 @@ public extension View {
     ///     secondaryButton: .cancel { dismiss() }
     /// )
     ///
-    /// // With position and blur overlay
+    /// // With position and custom padding
     /// .pModalAlert(
     ///     isPresented: $showAlert,
     ///     position: .bottom,
-    ///     overlay: .blurred(),
+    ///     bottomPadding: 32,
     ///     title: "Confirm",
     ///     primaryButton: .primary("OK") { }
     /// )
@@ -882,6 +910,9 @@ public extension View {
         isPresented: Binding<Bool>,
         position: PModalPosition = .center,
         overlay: PModalOverlayStyle = .dimmed,
+        topPadding: CGFloat? = nil,
+        bottomPadding: CGFloat? = nil,
+        horizontalPadding: CGFloat = 16,
         title: String,
         message: String? = nil,
         icon: String? = nil,
@@ -889,7 +920,14 @@ public extension View {
         primaryButton: PModalButton,
         secondaryButton: PModalButton? = nil
     ) -> some View {
-        pModal(isPresented: isPresented, position: position, overlay: overlay) {
+        pModal(
+            isPresented: isPresented,
+            position: position,
+            overlay: overlay,
+            topPadding: topPadding,
+            bottomPadding: bottomPadding,
+            horizontalPadding: horizontalPadding
+        ) {
             PModalAlertContent(
                 isPresented: isPresented,
                 title: title,
@@ -1157,7 +1195,7 @@ struct PModalPreviewContainer: View {
         }
     
         // Custom Content Modal
-        .pModal(isPresented: $showCustomModal) {
+        .pModal(isPresented: $showCustomModal, position: .bottom, bottomPadding: 100) {
             VStack(spacing: 20) {
                 Image(systemName: "star.fill")
                     .font(.system(size: 48))

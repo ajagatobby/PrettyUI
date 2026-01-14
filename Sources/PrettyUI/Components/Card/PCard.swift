@@ -631,6 +631,10 @@ struct PCard_Previews: PreviewProvider {
                 }
                 .selected(true)
                 
+                PAvatar(name: "User")
+                    .size(.xl)
+                    .iconBadge("camera.fill", position: .bottomTrailing, backgroundColor: .primary, size: 24)
+                
                 // Flat card
                 PCard {
                     Text("Flat card with border only")
