@@ -23,10 +23,10 @@ import AppKit
 /// Wrapper class to hold the dismiss action (allows passing MainActor function through environment)
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 @MainActor
-final class PModalDismissAction: @unchecked Sendable {
-    let dismiss: () -> Void
+public final class PModalDismissAction: @unchecked Sendable {
+    public let dismiss: () -> Void
     
-    init(_ dismiss: @escaping () -> Void) {
+    public init(_ dismiss: @escaping () -> Void) {
         self.dismiss = dismiss
     }
 }
@@ -38,7 +38,7 @@ private struct PModalDismissKey: EnvironmentKey {
 }
 
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-extension EnvironmentValues {
+public extension EnvironmentValues {
     var pModalDismiss: PModalDismissAction? {
         get { self[PModalDismissKey.self] }
         set { self[PModalDismissKey.self] = newValue }
