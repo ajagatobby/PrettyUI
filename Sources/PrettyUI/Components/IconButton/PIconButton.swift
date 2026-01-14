@@ -23,6 +23,8 @@ public struct PIconButtonConfiguration {
     var foregroundToken: ColorToken? = nil
     var customSize: CGFloat? = nil
     var fontWeight: Font.Weight = .medium
+    var customIconSize: CGFloat? = nil
+    var customFont: Font? = nil
     
     public enum PIconButtonSize {
         case sm   // 32pt
@@ -127,7 +129,7 @@ public struct PIconButton: View {
     public var body: some View {
         Button(action: handleAction) {
             Image(systemName: systemName)
-                .font(.system(size: config.size.iconSize, weight: config.fontWeight))
+                .font(iconFont)
                 .foregroundColor(foregroundColor)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(background)
@@ -158,6 +160,15 @@ public struct PIconButton: View {
     
     private var buttonSize: CGFloat {
         config.customSize ?? config.size.value
+    }
+    
+    private var iconFont: Font {
+        // Priority: customFont > customIconSize + fontWeight > size default + fontWeight
+        if let font = config.customFont {
+            return font
+        }
+        let iconSize = config.customIconSize ?? config.size.iconSize
+        return .system(size: iconSize, weight: config.fontWeight)
     }
     
     // MARK: - Colors
@@ -360,6 +371,28 @@ public extension PIconButton {
     func fontWeight(_ weight: Font.Weight) -> PIconButton {
         var newConfig = config
         newConfig.fontWeight = weight
+        return PIconButton(systemName: systemName, action: action, config: newConfig)
+    }
+    
+    /// Set custom font for the icon (e.g., `.font(.system(size: 20, weight: .semibold))`)
+    func font(_ font: Font) -> PIconButton {
+        var newConfig = config
+        newConfig.customFont = font
+        return PIconButton(systemName: systemName, action: action, config: newConfig)
+    }
+    
+    /// Set custom icon size while keeping the font weight configurable separately
+    func iconSize(_ size: CGFloat) -> PIconButton {
+        var newConfig = config
+        newConfig.customIconSize = size
+        return PIconButton(systemName: systemName, action: action, config: newConfig)
+    }
+    
+    /// Set foreground color using SwiftUI-style naming (alias for `foreground(_:)`)
+    func foregroundColor(_ color: Color) -> PIconButton {
+        var newConfig = config
+        newConfig.customForeground = color
+        newConfig.foregroundToken = nil
         return PIconButton(systemName: systemName, action: action, config: newConfig)
     }
     
