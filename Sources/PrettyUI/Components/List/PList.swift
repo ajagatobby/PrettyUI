@@ -178,6 +178,11 @@ public struct PListItem<Leading: View>: View {
     
     @Environment(\.prettyTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    
+    // MARK: - State
+    
+    @State private var isPressed = false
     
     // MARK: - Properties
     
@@ -192,6 +197,7 @@ public struct PListItem<Leading: View>: View {
     private var dividerStyle: PListDividerStyle = .inset
     private var showDivider: Bool = true
     private var isDestructive: Bool = false
+    private var useLegacyGesture: Bool = false
     private var action: (() -> Void)? = nil
     
     // MARK: - Computed Properties
@@ -236,6 +242,7 @@ public struct PListItem<Leading: View>: View {
         dividerStyle: PListDividerStyle,
         showDivider: Bool,
         isDestructive: Bool,
+        useLegacyGesture: Bool,
         action: (() -> Void)?
     ) {
         self.title = title
@@ -247,6 +254,7 @@ public struct PListItem<Leading: View>: View {
         self.dividerStyle = dividerStyle
         self.showDivider = showDivider
         self.isDestructive = isDestructive
+        self.useLegacyGesture = useLegacyGesture
         self.action = action
     }
     
@@ -255,13 +263,31 @@ public struct PListItem<Leading: View>: View {
     public var body: some View {
         VStack(spacing: 0) {
             if hasAction, let action = action {
-                itemContent
-                    .modifier(
-                        PTapGesture(action: action)
-                            .scaleEffect(1.0)
-                            .opacityEffect(0.7)
-                            .haptics(false)
-                    )
+                if useLegacyGesture {
+                    // Legacy DragGesture approach (may block scrolling)
+                    itemContent
+                        .background(legacyBackground)
+                        .simultaneousGesture(
+                            DragGesture(minimumDistance: 0)
+                                .onChanged { _ in
+                                    if !isPressed { isPressed = true }
+                                }
+                                .onEnded { _ in
+                                    isPressed = false
+                                    action()
+                                }
+                        )
+                        .animation(reduceMotion ? nil : .easeInOut(duration: 0.1), value: isPressed)
+                } else {
+                    // PTapGesture approach (scroll-compatible)
+                    itemContent
+                        .modifier(
+                            PTapGesture(action: action)
+                                .scaleEffect(1.0)
+                                .opacityEffect(0.7)
+                                .haptics(false)
+                        )
+                }
             } else {
                 itemContent
             }
@@ -270,6 +296,15 @@ public struct PListItem<Leading: View>: View {
             if showDivider {
                 divider
             }
+        }
+    }
+    
+    @ViewBuilder
+    private var legacyBackground: some View {
+        if isPressed && hasAction {
+            colors.muted.opacity(0.5)
+        } else {
+            Color.clear
         }
     }
     
@@ -371,6 +406,7 @@ extension PListItem {
             dividerStyle: dividerStyle,
             showDivider: showDivider,
             isDestructive: isDestructive,
+            useLegacyGesture: useLegacyGesture,
             action: action
         )
     }
@@ -387,6 +423,7 @@ extension PListItem {
             dividerStyle: style,
             showDivider: showDivider,
             isDestructive: isDestructive,
+            useLegacyGesture: useLegacyGesture,
             action: action
         )
     }
@@ -403,6 +440,7 @@ extension PListItem {
             dividerStyle: dividerStyle,
             showDivider: false,
             isDestructive: isDestructive,
+            useLegacyGesture: useLegacyGesture,
             action: action
         )
     }
@@ -419,6 +457,7 @@ extension PListItem {
             dividerStyle: dividerStyle,
             showDivider: showDivider,
             isDestructive: isDestructive,
+            useLegacyGesture: useLegacyGesture,
             action: action
         )
     }
@@ -435,6 +474,27 @@ extension PListItem {
             dividerStyle: dividerStyle,
             showDivider: showDivider,
             isDestructive: isDestructive,
+            useLegacyGesture: useLegacyGesture,
+            action: action
+        )
+    }
+    
+    /// Use legacy DragGesture instead of PTapGesture
+    /// 
+    /// Note: Legacy gesture may block scrolling in some cases.
+    /// Use this only when you need the original behavior.
+    public func legacyGesture(_ enabled: Bool = true) -> PListItem {
+        PListItem(
+            title: title,
+            subtitle: subtitle,
+            icon: icon,
+            iconColor: iconColor,
+            leading: leading,
+            accessory: accessory,
+            dividerStyle: dividerStyle,
+            showDivider: showDivider,
+            isDestructive: isDestructive,
+            useLegacyGesture: enabled,
             action: action
         )
     }
