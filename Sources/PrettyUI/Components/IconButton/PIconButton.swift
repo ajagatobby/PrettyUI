@@ -19,6 +19,8 @@ public struct PIconButtonConfiguration {
     var hapticFeedback: Bool = true
     var customBackground: Color? = nil
     var customForeground: Color? = nil
+    var backgroundToken: ColorToken? = nil
+    var foregroundToken: ColorToken? = nil
     var customSize: CGFloat? = nil
     var fontWeight: Font.Weight = .medium
     
@@ -126,7 +128,7 @@ public struct PIconButton: View {
         Button(action: handleAction) {
             Image(systemName: systemName)
                 .font(.system(size: config.size.iconSize, weight: config.fontWeight))
-                .foregroundColor(config.customForeground ?? foregroundColor)
+                .foregroundColor(foregroundColor)
                 .frame(width: buttonSize, height: buttonSize)
                 .background(background)
                 .clipShape(Circle())
@@ -161,8 +163,12 @@ public struct PIconButton: View {
     // MARK: - Colors
     
     private var backgroundColor: Color {
+        // Priority: customBackground > backgroundToken > variant default
         if let custom = config.customBackground {
             return custom
+        }
+        if let token = config.backgroundToken {
+            return token.resolve(from: colors)
         }
         switch config.variant {
         case .primary: return colors.primary
@@ -174,6 +180,13 @@ public struct PIconButton: View {
     }
     
     private var foregroundColor: Color {
+        // Priority: customForeground > foregroundToken > variant default
+        if let custom = config.customForeground {
+            return custom
+        }
+        if let token = config.foregroundToken {
+            return token.resolve(from: colors)
+        }
         switch config.variant {
         case .primary: return colors.primaryForeground
         case .secondary: return colors.secondaryForeground
@@ -183,14 +196,19 @@ public struct PIconButton: View {
         }
     }
     
+    /// Whether a custom background (Color or Token) is set
+    private var hasCustomBackground: Bool {
+        config.customBackground != nil || config.backgroundToken != nil
+    }
+    
     @ViewBuilder
     private var background: some View {
-        // Always use custom background if set
-        if let customBg = config.customBackground {
+        // Use resolved backgroundColor which handles custom/token/variant
+        if hasCustomBackground {
             if isPressed {
-                customBg.opacity(0.85)
+                backgroundColor.opacity(0.85)
             } else {
-                customBg
+                backgroundColor
             }
         } else if isPressed {
             switch config.variant {
@@ -283,6 +301,15 @@ public extension PIconButton {
     func background(_ color: Color) -> PIconButton {
         var newConfig = config
         newConfig.customBackground = color
+        newConfig.backgroundToken = nil
+        return PIconButton(systemName: systemName, action: action, config: newConfig)
+    }
+    
+    /// Set background color using a ColorToken
+    func background(_ token: ColorToken) -> PIconButton {
+        var newConfig = config
+        newConfig.backgroundToken = token
+        newConfig.customBackground = nil
         return PIconButton(systemName: systemName, action: action, config: newConfig)
     }
     
@@ -290,14 +317,35 @@ public extension PIconButton {
     func foreground(_ color: Color) -> PIconButton {
         var newConfig = config
         newConfig.customForeground = color
+        newConfig.foregroundToken = nil
         return PIconButton(systemName: systemName, action: action, config: newConfig)
     }
     
-    /// Set custom colors
+    /// Set foreground color using a ColorToken
+    func foreground(_ token: ColorToken) -> PIconButton {
+        var newConfig = config
+        newConfig.foregroundToken = token
+        newConfig.customForeground = nil
+        return PIconButton(systemName: systemName, action: action, config: newConfig)
+    }
+    
+    /// Set custom colors using Color
     func colors(background: Color, foreground: Color) -> PIconButton {
         var newConfig = config
         newConfig.customBackground = background
         newConfig.customForeground = foreground
+        newConfig.backgroundToken = nil
+        newConfig.foregroundToken = nil
+        return PIconButton(systemName: systemName, action: action, config: newConfig)
+    }
+    
+    /// Set colors using ColorTokens
+    func colors(background: ColorToken, foreground: ColorToken) -> PIconButton {
+        var newConfig = config
+        newConfig.backgroundToken = background
+        newConfig.foregroundToken = foreground
+        newConfig.customBackground = nil
+        newConfig.customForeground = nil
         return PIconButton(systemName: systemName, action: action, config: newConfig)
     }
     

@@ -7,6 +7,72 @@
 
 import SwiftUI
 
+// MARK: - Color Token Enum
+
+/// Enum representing color token references that resolve from the current theme
+@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
+public enum ColorToken: String, Equatable, Sendable, CaseIterable {
+    // Primary
+    case primary
+    case primaryForeground
+    
+    // Secondary
+    case secondary
+    case secondaryForeground
+    
+    // Accent
+    case accent
+    case accentForeground
+    
+    // Semantic
+    case destructive
+    case destructiveForeground
+    case success
+    case successForeground
+    case warning
+    case warningForeground
+    
+    // Background
+    case background
+    case foreground
+    case muted
+    case mutedForeground
+    case card
+    case cardForeground
+    
+    // Border & Ring
+    case border
+    case input
+    case ring
+    
+    /// Resolve this token to a Color using the provided ColorTokens
+    public func resolve(from tokens: ColorTokens) -> Color {
+        switch self {
+        case .primary: return tokens.primary
+        case .primaryForeground: return tokens.primaryForeground
+        case .secondary: return tokens.secondary
+        case .secondaryForeground: return tokens.secondaryForeground
+        case .accent: return tokens.accent
+        case .accentForeground: return tokens.accentForeground
+        case .destructive: return tokens.destructive
+        case .destructiveForeground: return tokens.destructiveForeground
+        case .success: return tokens.success
+        case .successForeground: return tokens.successForeground
+        case .warning: return tokens.warning
+        case .warningForeground: return tokens.warningForeground
+        case .background: return tokens.background
+        case .foreground: return tokens.foreground
+        case .muted: return tokens.muted
+        case .mutedForeground: return tokens.mutedForeground
+        case .card: return tokens.card
+        case .cardForeground: return tokens.cardForeground
+        case .border: return tokens.border
+        case .input: return tokens.input
+        case .ring: return tokens.ring
+        }
+    }
+}
+
 /// Color tokens that define the color palette for your app
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
 public struct ColorTokens: Equatable, Sendable {

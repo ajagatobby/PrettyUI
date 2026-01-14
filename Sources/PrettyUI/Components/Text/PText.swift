@@ -89,6 +89,8 @@ public struct PTextStrikethroughStyle: Sendable {
 public struct PTextConfiguration {
     var style: PTextStyle = .body
     var color: PTextColor = .primary
+    var colorToken: ColorToken? = nil
+    var customColor: Color? = nil
     var weight: Font.Weight? = nil
     var fontDesign: Font.Design? = nil
     var fontSize: CGFloat? = nil
@@ -315,6 +317,15 @@ public struct PText: View {
     }
     
     private var resolvedColor: Color {
+        // Priority: customColor > colorToken > PTextColor
+        if let customColor = config.customColor {
+            return customColor
+        }
+        
+        if let token = config.colorToken {
+            return token.resolve(from: colors)
+        }
+        
         switch config.color {
         case .primary:
             return colors.foreground
@@ -397,6 +408,26 @@ public extension PText {
     func color(_ color: PTextColor) -> PText {
         var newConfig = config
         newConfig.color = color
+        newConfig.colorToken = nil
+        newConfig.customColor = nil
+        return PText(text: text, config: newConfig)
+    }
+    
+    /// Set the text color using a ColorToken
+    /// - Parameter token: ColorToken that resolves from the current theme
+    ///
+    /// Example:
+    /// ```swift
+    /// PText("Muted Text")
+    ///     .color(.mutedForeground)
+    ///
+    /// PText("Primary Color")
+    ///     .color(.primary)
+    /// ```
+    func color(_ token: ColorToken) -> PText {
+        var newConfig = config
+        newConfig.colorToken = token
+        newConfig.customColor = nil
         return PText(text: text, config: newConfig)
     }
     
@@ -405,15 +436,12 @@ public extension PText {
     ///
     /// Example:
     /// ```swift
-    /// PText("Theme Color")
-    ///     .foregroundColor(colors.mutedForeground)
-    ///
     /// PText("Custom Color")
     ///     .foregroundColor(Color.blue)
     /// ```
     func foregroundColor(_ color: Color) -> PText {
         var newConfig = config
-        newConfig.color = .custom(color)
+        newConfig.customColor = color
         return PText(text: text, config: newConfig)
     }
     

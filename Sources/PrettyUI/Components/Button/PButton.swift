@@ -31,6 +31,8 @@ public struct PButtonConfiguration {
     // Custom styling
     var customBackground: Color? = nil
     var customForeground: Color? = nil
+    var backgroundToken: ColorToken? = nil
+    var foregroundToken: ColorToken? = nil
     var customWidth: CGFloat? = nil
     var customHeight: CGFloat? = nil
     var fontWeight: Font.Weight = .semibold
@@ -200,8 +202,12 @@ fileprivate struct PButtonContent<Label: View>: View {
     // MARK: - Background
     
     private var backgroundColor: Color {
+        // Priority: customBackground > backgroundToken > variant default
         if let custom = config.customBackground {
             return custom
+        }
+        if let token = config.backgroundToken {
+            return token.resolve(from: colors)
         }
         switch config.variant {
         case .primary:
@@ -384,7 +390,7 @@ public struct PButton: View {
         }
         .font(font)
         .fontWeight(config.fontWeight)
-        .foregroundColor(config.customForeground ?? foregroundColor)
+        .foregroundColor(foregroundColor)
         .padding(.horizontal, horizontalPadding)
         .padding(.vertical, verticalPadding)
         .frame(width: config.customWidth, height: config.customHeight)
@@ -404,12 +410,19 @@ public struct PButton: View {
         PSpinner()
             .size(config.spinnerSize ?? theme.components.button.defaultSpinnerSize)
             .style(config.spinnerStyle)
-            .color(config.customForeground ?? foregroundColor)
+            .color(foregroundColor)
     }
     
     // MARK: - Color Styling
     
     private var foregroundColor: Color {
+        // Priority: customForeground > foregroundToken > variant default
+        if let custom = config.customForeground {
+            return custom
+        }
+        if let token = config.foregroundToken {
+            return token.resolve(from: colors)
+        }
         switch config.variant {
         case .primary:
             return colors.primaryForeground
@@ -612,6 +625,16 @@ public extension PButton {
     func background(_ color: Color) -> PButton {
         var newConfig = config
         newConfig.customBackground = color
+        newConfig.backgroundToken = nil
+        return PButton(title: title, action: action, config: newConfig)
+    }
+    
+    /// Set background color using a ColorToken
+    /// - Parameter token: ColorToken that resolves from the current theme
+    func background(_ token: ColorToken) -> PButton {
+        var newConfig = config
+        newConfig.backgroundToken = token
+        newConfig.customBackground = nil
         return PButton(title: title, action: action, config: newConfig)
     }
     
@@ -619,14 +642,36 @@ public extension PButton {
     func foreground(_ color: Color) -> PButton {
         var newConfig = config
         newConfig.customForeground = color
+        newConfig.foregroundToken = nil
         return PButton(title: title, action: action, config: newConfig)
     }
     
-    /// Set custom colors for background and foreground
+    /// Set foreground color using a ColorToken
+    /// - Parameter token: ColorToken that resolves from the current theme
+    func foreground(_ token: ColorToken) -> PButton {
+        var newConfig = config
+        newConfig.foregroundToken = token
+        newConfig.customForeground = nil
+        return PButton(title: title, action: action, config: newConfig)
+    }
+    
+    /// Set custom colors for background and foreground using Color
     func colors(background: Color, foreground: Color) -> PButton {
         var newConfig = config
         newConfig.customBackground = background
         newConfig.customForeground = foreground
+        newConfig.backgroundToken = nil
+        newConfig.foregroundToken = nil
+        return PButton(title: title, action: action, config: newConfig)
+    }
+    
+    /// Set colors for background and foreground using ColorTokens
+    func colors(background: ColorToken, foreground: ColorToken) -> PButton {
+        var newConfig = config
+        newConfig.backgroundToken = background
+        newConfig.foregroundToken = foreground
+        newConfig.customBackground = nil
+        newConfig.customForeground = nil
         return PButton(title: title, action: action, config: newConfig)
     }
     
