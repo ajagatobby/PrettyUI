@@ -178,7 +178,6 @@ public struct PListItem<Leading: View>: View {
     
     @Environment(\.prettyTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     // MARK: - Properties
     
@@ -255,13 +254,14 @@ public struct PListItem<Leading: View>: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            if hasAction {
-                Button {
-                    action?()
-                } label: {
-                    itemContent
-                }
-                .buttonStyle(PListItemButtonStyle(colors: colors, reduceMotion: reduceMotion))
+            if hasAction, let action = action {
+                itemContent
+                    .modifier(
+                        PTapGesture(action: action)
+                            .scaleEffect(1.0)
+                            .opacityEffect(0.7)
+                            .haptics(false)
+                    )
             } else {
                 itemContent
             }
@@ -605,24 +605,6 @@ public struct PListToggleItem: View {
         var item = self
         item.dividerStyle = style
         return item
-    }
-}
-
-// MARK: - List Item Button Style
-
-/// A custom button style for list items that works well with scroll views
-@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-private struct PListItemButtonStyle: ButtonStyle {
-    let colors: ColorTokens
-    let reduceMotion: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .background(configuration.isPressed ? colors.muted.opacity(0.5) : Color.clear)
-            .animation(
-                reduceMotion ? nil : .easeInOut(duration: 0.1),
-                value: configuration.isPressed
-            )
     }
 }
 

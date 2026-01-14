@@ -76,7 +76,6 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
     
     @Environment(\.prettyTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     // MARK: - State
     
@@ -223,20 +222,16 @@ public struct PCard<Content: View, Header: View, Footer: View>: View {
     // MARK: - Body
     
     public var body: some View {
-        if isPressable {
-            Button {
-                action?()
-            } label: {
-                cardContent
-            }
-            .buttonStyle(PCardButtonStyle(reduceMotion: reduceMotion))
-            #if os(macOS)
-            .onHover { hovering in
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isHovered = hovering
+        if isPressable, let action = action {
+            cardContent
+                .pTapGesture(action: action)
+                #if os(macOS)
+                .onHover { hovering in
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        isHovered = hovering
+                    }
                 }
-            }
-            #endif
+                #endif
         } else {
             cardContent
             #if os(macOS)
@@ -492,23 +487,6 @@ extension PCard where Header == EmptyView {
         self.content = content()
         self.header = nil
         self.footer = footer()
-    }
-}
-
-// MARK: - Card Button Style
-
-/// A custom button style for pressable cards that works well with scroll views
-@available(iOS 16.0, macOS 13.0, tvOS 16.0, watchOS 9.0, *)
-private struct PCardButtonStyle: ButtonStyle {
-    let reduceMotion: Bool
-    
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1.0)
-            .animation(
-                reduceMotion ? nil : .spring(response: 0.25, dampingFraction: 0.7, blendDuration: 0),
-                value: configuration.isPressed
-            )
     }
 }
 
