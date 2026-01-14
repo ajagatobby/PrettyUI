@@ -703,6 +703,8 @@ struct PText_Previews: PreviewProvider {
                     VStack(alignment: .leading, spacing: 16) {
                         PText("Display Text")
                             .style(.display)
+                            .fontDesign(.rounded)
+                            .foregroundColor(.primary)
                         
                         PText("Headline Text")
                             .style(.headline)
