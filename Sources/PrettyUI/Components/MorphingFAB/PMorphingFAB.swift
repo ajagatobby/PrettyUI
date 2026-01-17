@@ -10,25 +10,98 @@
 
 import SwiftUI
 
+// MARK: - Enums
+
+/// Appearance mode for the FAB
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+public enum PFABAppearance {
+    case light      // Light background, dark icon
+    case dark       // Dark background, light icon
+    case system     // Follows system color scheme
+    case custom     // Uses custom tint and icon colors
+}
+
+/// Shape of the FAB button
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+public enum PFABShape {
+    case circle
+    case roundedSquare(cornerRadius: CGFloat)
+    case capsule
+}
+
+/// Position/alignment for the expanded menu
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+public enum PFABMenuAlignment {
+    case bottom
+    case center
+    case top
+}
+
+/// Haptic feedback style
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+public enum PFABHapticStyle {
+    case none
+    case light
+    case medium
+    case heavy
+    case soft
+    case rigid
+}
+
 // MARK: - Configuration
 
 /// Configuration for PExpandableFAB styling
-@available(iOS 17.0, tvOS 17.0, watchOS 10.0, *)
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 @available(macOS, unavailable, message: "PExpandableFAB is not available on macOS")
 public struct PExpandableFABConfiguration {
+    // MARK: - Size & Shape
     var size: CGFloat = 56
+    var shape: PFABShape = .circle
     var expandedCornerRadius: CGFloat = 30
-    var animationDuration: CGFloat = 0.2
-    var backdropOpacity: Double = 0.05
-    var hapticFeedback: Bool = true
-    var shadow: ShadowSize = .sm
-    var expandedShadow: ShadowSize = .lg
-    var horizontalPadding: CGFloat = 15
-    var bottomPadding: CGFloat = 5
     
-    // Uses theme foreground/background by default (nil = use theme)
+    // MARK: - Appearance
+    var appearance: PFABAppearance = .light
     var customTint: Color? = nil
     var customIconColor: Color? = nil
+    var expandedTint: Color? = nil  // Different color when expanded
+    
+    // MARK: - Border
+    var borderColor: Color? = nil
+    var borderWidth: CGFloat = 0
+    var expandedBorderColor: Color? = nil
+    var expandedBorderWidth: CGFloat = 0
+    
+    // MARK: - Shadow
+    var shadow: ShadowSize = .sm
+    var expandedShadow: ShadowSize = .lg
+    var customShadowColor: Color? = nil
+    var customShadowRadius: CGFloat? = nil
+    var customShadowOffset: CGSize? = nil
+    
+    // MARK: - Animation
+    var animationDuration: CGFloat = 0.25
+    var animationDamping: CGFloat = 0.85
+    var pressScale: CGFloat = 0.95
+    var iconRotation: Angle = .zero  // Rotation when menu is open
+    var enablePressAnimation: Bool = true
+    
+    // MARK: - Backdrop
+    var backdropOpacity: Double = 0.3
+    var backdropBlur: CGFloat = 0  // 0 = no blur
+    var backdropColor: Color = .black
+    var dismissOnBackdropTap: Bool = true
+    
+    // MARK: - Menu Layout
+    var menuAlignment: PFABMenuAlignment = .bottom
+    var horizontalPadding: CGFloat = 16
+    var bottomPadding: CGFloat = 8
+    var topPadding: CGFloat = 8
+    var menuMaxWidth: CGFloat? = nil  // nil = full width minus padding
+    var menuMaxHeight: CGFloat? = nil
+    
+    // MARK: - Interaction
+    var hapticStyle: PFABHapticStyle = .medium
+    var closeOnMenuItemTap: Bool = false
 }
 
 // MARK: - PMorphingFAB
@@ -38,7 +111,7 @@ public struct PExpandableFABConfiguration {
 ///
 /// Inspired by Family.co's elegant FAB animation pattern.
 ///
-/// Usage:
+/// Basic usage:
 /// ```swift
 /// PExpandableFAB(isExpanded: $isExpanded) {
 ///     Image(systemName: "plus")
@@ -49,15 +122,22 @@ public struct PExpandableFABConfiguration {
 /// }
 /// ```
 ///
-/// Simple usage with just a menu:
+/// With customizations:
 /// ```swift
-/// PExpandableFAB {
+/// PExpandableFAB(isExpanded: $isExpanded) {
 ///     Image(systemName: "plus")
 /// } menu: {
 ///     MenuContent()
+/// } detail: {
+///     DetailView()
 /// }
+/// .appearance(.dark)
+/// .fabShape(.roundedSquare(cornerRadius: 16))
+/// .iconRotation(.degrees(45))
+/// .backdropBlur(10)
+/// .border(.blue, width: 2)
 /// ```
-@available(iOS 17.0, tvOS 17.0, watchOS 10.0, *)
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 @available(macOS, unavailable, message: "PExpandableFAB is not available on macOS")
 public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: View>: View {
     
@@ -86,6 +166,7 @@ public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: Vi
     @State private var showFullScreenCover: Bool = false
     @State private var animateContent: Bool = false
     @State private var viewPosition: CGRect = .zero
+    @State private var isPressed: Bool = false
     
     // MARK: - Computed Properties
     
@@ -94,24 +175,72 @@ public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: Vi
     }
     
     private var tintColor: Color {
-        config.customTint ?? colors.foreground
+        if let custom = config.customTint {
+            return custom
+        }
+        
+        switch config.appearance {
+        case .light:
+            return colors.background
+        case .dark:
+            return colors.foreground
+        case .system:
+            return colorScheme == .dark ? colors.foreground : colors.background
+        case .custom:
+            return colors.primary
+        }
+    }
+    
+    private var expandedTintColor: Color {
+        config.expandedTint ?? tintColor
     }
     
     private var iconColor: Color {
-        config.customIconColor ?? colors.background
+        if let custom = config.customIconColor {
+            return custom
+        }
+        
+        switch config.appearance {
+        case .light:
+            return colors.foreground
+        case .dark:
+            return colors.background
+        case .system:
+            return colorScheme == .dark ? colors.background : colors.foreground
+        case .custom:
+            return colors.primaryForeground
+        }
     }
     
     private var morphAnimation: Animation? {
-        reduceMotion ? nil : .interpolatingSpring(duration: config.animationDuration, bounce: 0)
+        reduceMotion ? nil : .spring(response: config.animationDuration, dampingFraction: config.animationDamping)
+    }
+    
+    private var pressAnimation: Animation? {
+        reduceMotion ? nil : .spring(response: 0.15, dampingFraction: 0.7)
     }
     
     private var shadowStyle: ShadowStyle {
-        theme.shadows[config.shadow]
+        if let radius = config.customShadowRadius,
+           let offset = config.customShadowOffset {
+            return ShadowStyle(
+                color: config.customShadowColor ?? Color.black.opacity(0.1),
+                radius: radius,
+                x: offset.width,
+                y: offset.height
+            )
+        }
+        return theme.shadows[config.shadow]
     }
     
     private var expandedShadowStyle: ShadowStyle {
         theme.shadows[config.expandedShadow]
     }
+    
+    private var currentIconRotation: Angle {
+        animateContent ? config.iconRotation : .zero
+    }
+    
     
     // MARK: - Initializer
     
@@ -153,22 +282,36 @@ public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: Vi
     
     public var body: some View {
         label
-            .foregroundStyle(iconColor)
+            .foregroundColor(iconColor)
+            .rotationEffect(currentIconRotation)
             .frame(width: config.size, height: config.size)
             .background(tintColor)
-            .clipShape(.circle)
-            .contentShape(.circle)
+            .modifier(FABShapeModifier(shape: config.shape, borderColor: config.borderColor, borderWidth: config.borderWidth))
             .prettyShadow(shadowStyle)
-            .onGeometryChange(for: CGRect.self, of: {
-                $0.frame(in: .global)
-            }, action: { newValue in
-                viewPosition = newValue
-            })
+            .scaleEffect(isPressed && config.enablePressAnimation ? config.pressScale : 1.0)
+            .animation(pressAnimation, value: isPressed)
+            .background(
+                GeometryReader { geometry in
+                    Color.clear
+                        .onAppear {
+                            viewPosition = geometry.frame(in: .global)
+                        }
+                        .onChange(of: geometry.frame(in: .global)) { newValue in
+                            viewPosition = newValue
+                        }
+                }
+            )
             .opacity(showFullScreenCover ? 0 : 1)
-            .onTapGesture {
-                triggerHaptic()
-                toggleFullScreenCover(withAnimation: false, status: true)
-            }
+            .onLongPressGesture(minimumDuration: .infinity, pressing: { pressing in
+                isPressed = pressing
+            }, perform: {})
+            .simultaneousGesture(
+                TapGesture()
+                    .onEnded {
+                        triggerHaptic()
+                        toggleFullScreenCover(withAnimation: false, status: true)
+                    }
+            )
             .fullScreenCover(isPresented: $showFullScreenCover) {
                 fullScreenContent
             }
@@ -183,34 +326,44 @@ public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: Vi
                 ZStack(alignment: .top) {
                     if isExpanded {
                         detail
-                            .transition(.blurReplace)
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     } else {
-                        menu
-                            .transition(.blurReplace)
+                        menuContainer
+                            .transition(.opacity.combined(with: .scale(scale: 0.95)))
                     }
                 }
-                .transition(.blurReplace)
+                .transition(.opacity)
             } else {
                 label
-                    .foregroundStyle(iconColor)
+                    .foregroundColor(iconColor)
+                    .rotationEffect(currentIconRotation)
                     .frame(width: config.size, height: config.size)
-                    .transition(.blurReplace)
+                    .transition(.opacity)
             }
         }
-        .geometryGroup()
-        .clipShape(.rect(cornerRadius: config.expandedCornerRadius, style: .continuous))
+        .frame(maxWidth: config.menuMaxWidth)
+        .frame(maxHeight: config.menuMaxHeight)
+        .clipShape(RoundedRectangle(cornerRadius: config.expandedCornerRadius, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: config.expandedCornerRadius, style: .continuous)
+                .stroke(
+                    (config.expandedBorderColor ?? config.borderColor) ?? .clear,
+                    lineWidth: config.expandedBorderWidth > 0 ? config.expandedBorderWidth : config.borderWidth
+                )
+        )
         .background {
             RoundedRectangle(cornerRadius: config.expandedCornerRadius, style: .continuous)
-                .fill(tintColor)
+                .fill(expandedTintColor)
                 .prettyShadow(animateContent ? expandedShadowStyle : shadowStyle)
                 .ignoresSafeArea(isExpanded ? .all : [])
         }
         .padding(.horizontal, animateContent && !isExpanded ? config.horizontalPadding : 0)
         .padding(.bottom, animateContent && !isExpanded ? config.bottomPadding : 0)
+        .padding(.top, animateContent && !isExpanded ? config.topPadding : 0)
         .frame(
             maxWidth: .infinity,
             maxHeight: .infinity,
-            alignment: animateContent ? .bottom : .topLeading
+            alignment: menuFrameAlignment
         )
         .offset(
             x: animateContent ? 0 : viewPosition.minX,
@@ -218,22 +371,63 @@ public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: Vi
         )
         .ignoresSafeArea(animateContent ? [] : .all)
         .background {
-            Rectangle()
-                .fill(.black.opacity(animateContent ? config.backdropOpacity : 0))
-                .ignoresSafeArea()
-                .contentShape(.rect)
-                .onTapGesture {
-                    dismissWithAnimation()
-                }
+            backdropView
         }
         .task {
-            try? await Task.sleep(for: .seconds(0.06))
+            try? await Task.sleep(nanoseconds: 60_000_000) // 0.06 seconds
             withAnimation(morphAnimation) {
                 animateContent = true
             }
         }
         .animation(morphAnimation, value: isExpanded)
-        .presentationBackground(.clear)
+        .background(ClearBackgroundView())
+    }
+    
+    private var menuFrameAlignment: Alignment {
+        guard animateContent else { return .topLeading }
+        
+        switch config.menuAlignment {
+        case .bottom:
+            return .bottom
+        case .center:
+            return .center
+        case .top:
+            return .top
+        }
+    }
+    
+    @ViewBuilder
+    private var menuContainer: some View {
+        if config.menuMaxHeight != nil {
+            ScrollView {
+                menu
+            }
+        } else {
+            menu
+        }
+    }
+    
+    @ViewBuilder
+    private var backdropView: some View {
+        ZStack {
+            // Color backdrop
+            Rectangle()
+                .fill(config.backdropColor.opacity(animateContent ? config.backdropOpacity : 0))
+            
+            // Optional blur
+            if config.backdropBlur > 0 && animateContent {
+                Rectangle()
+                    .fill(.ultraThinMaterial)
+                    .opacity(animateContent ? 1 : 0)
+            }
+        }
+        .ignoresSafeArea()
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if config.dismissOnBackdropTap {
+                dismissWithAnimation()
+            }
+        }
     }
     
     // MARK: - Private Methods
@@ -248,30 +442,92 @@ public struct PExpandableFAB<Label: View, MenuContent: View, ExpandedContent: Vi
     }
     
     private func dismissWithAnimation() {
-        withAnimation(morphAnimation, completionCriteria: .removed) {
+        withAnimation(morphAnimation) {
             animateContent = false
-        } completion: {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                toggleFullScreenCover(withAnimation: false, status: false)
-            }
+        }
+        // Delay the dismiss to allow animation to complete
+        DispatchQueue.main.asyncAfter(deadline: .now() + config.animationDuration + 0.1) {
+            toggleFullScreenCover(withAnimation: false, status: false)
         }
     }
     
     private func triggerHaptic() {
         #if os(iOS)
-        if config.hapticFeedback {
-            let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
-            impactFeedback.impactOccurred()
+        guard config.hapticStyle != .none else { return }
+        
+        let style: UIImpactFeedbackGenerator.FeedbackStyle
+        switch config.hapticStyle {
+        case .none:
+            return
+        case .light:
+            style = .light
+        case .medium:
+            style = .medium
+        case .heavy:
+            style = .heavy
+        case .soft:
+            style = .soft
+        case .rigid:
+            style = .rigid
         }
+        
+        let impactFeedback = UIImpactFeedbackGenerator(style: style)
+        impactFeedback.impactOccurred()
         #endif
     }
 }
 
+// MARK: - Shape Modifier Helper
+
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+private struct FABShapeModifier: ViewModifier {
+    let shape: PFABShape
+    let borderColor: Color?
+    let borderWidth: CGFloat
+    
+    func body(content: Content) -> some View {
+        switch shape {
+        case .circle:
+            content
+                .clipShape(Circle())
+                .overlay(Circle().stroke(borderColor ?? .clear, lineWidth: borderWidth))
+                .contentShape(Circle())
+        case .roundedSquare(let radius):
+            content
+                .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: radius, style: .continuous).stroke(borderColor ?? .clear, lineWidth: borderWidth))
+                .contentShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        case .capsule:
+            content
+                .clipShape(Capsule())
+                .overlay(Capsule().stroke(borderColor ?? .clear, lineWidth: borderWidth))
+                .contentShape(Capsule())
+        }
+    }
+}
+
+// MARK: - Clear Background Helper
+
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+private struct ClearBackgroundView: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        DispatchQueue.main.async {
+            view.superview?.superview?.backgroundColor = .clear
+        }
+        return view
+    }
+    
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
 // MARK: - Fluent Modifiers
 
-@available(iOS 17.0, tvOS 17.0, watchOS 10.0, *)
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 @available(macOS, unavailable)
 public extension PExpandableFAB {
+    
+    // MARK: - Size & Shape
     
     /// Set the FAB size (width and height)
     func size(_ size: CGFloat) -> PExpandableFAB {
@@ -280,31 +536,26 @@ public extension PExpandableFAB {
         return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
     }
     
+    /// Set the FAB shape
+    func fabShape(_ shape: PFABShape) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.shape = shape
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
     /// Set the corner radius when expanded
-    func cornerRadius(_ radius: CGFloat) -> PExpandableFAB {
+    func expandedCornerRadius(_ radius: CGFloat) -> PExpandableFAB {
         var newConfig = config
         newConfig.expandedCornerRadius = radius
         return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
     }
     
-    /// Set the animation duration
-    func duration(_ duration: CGFloat) -> PExpandableFAB {
-        var newConfig = config
-        newConfig.animationDuration = duration
-        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
-    }
+    // MARK: - Appearance
     
-    /// Set the backdrop opacity when expanded
-    func backdrop(_ opacity: Double) -> PExpandableFAB {
+    /// Set the appearance mode (light, dark, system, or custom)
+    func appearance(_ appearance: PFABAppearance) -> PExpandableFAB {
         var newConfig = config
-        newConfig.backdropOpacity = opacity
-        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
-    }
-    
-    /// Enable or disable haptic feedback
-    func haptics(_ enabled: Bool) -> PExpandableFAB {
-        var newConfig = config
-        newConfig.hapticFeedback = enabled
+        newConfig.appearance = appearance
         return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
     }
     
@@ -312,6 +563,14 @@ public extension PExpandableFAB {
     func tint(_ color: Color) -> PExpandableFAB {
         var newConfig = config
         newConfig.customTint = color
+        newConfig.appearance = .custom
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set a different tint color when expanded
+    func expandedTint(_ color: Color) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.expandedTint = color
         return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
     }
     
@@ -321,6 +580,26 @@ public extension PExpandableFAB {
         newConfig.customIconColor = color
         return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
     }
+    
+    // MARK: - Border
+    
+    /// Add a border to the FAB
+    func border(_ color: Color, width: CGFloat = 1) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.borderColor = color
+        newConfig.borderWidth = width
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set a different border when expanded
+    func expandedBorder(_ color: Color, width: CGFloat = 1) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.expandedBorderColor = color
+        newConfig.expandedBorderWidth = width
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    // MARK: - Shadow
     
     /// Set the shadow style at rest
     func shadow(_ shadow: ShadowSize) -> PExpandableFAB {
@@ -333,6 +612,130 @@ public extension PExpandableFAB {
     func expandedShadow(_ shadow: ShadowSize) -> PExpandableFAB {
         var newConfig = config
         newConfig.expandedShadow = shadow
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set a custom shadow
+    func customShadow(color: Color = Color.black.opacity(0.1), radius: CGFloat, x: CGFloat = 0, y: CGFloat = 4) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.customShadowColor = color
+        newConfig.customShadowRadius = radius
+        newConfig.customShadowOffset = CGSize(width: x, height: y)
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    // MARK: - Animation
+    
+    /// Set the animation duration and damping
+    func animation(duration: CGFloat, damping: CGFloat = 0.85) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.animationDuration = duration
+        newConfig.animationDamping = damping
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set the press scale effect (1.0 = no scale, 0.9 = 10% smaller)
+    func pressScale(_ scale: CGFloat) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.pressScale = scale
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Enable or disable press animation
+    func pressAnimation(_ enabled: Bool) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.enablePressAnimation = enabled
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set icon rotation when menu is open (e.g., .degrees(45) for plus → X)
+    func iconRotation(_ angle: Angle) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.iconRotation = angle
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    // MARK: - Backdrop
+    
+    /// Set the backdrop opacity (0.0 - 1.0)
+    func backdropOpacity(_ opacity: Double) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.backdropOpacity = opacity
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set the backdrop blur radius
+    func backdropBlur(_ radius: CGFloat) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.backdropBlur = radius
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set the backdrop color
+    func backdropColor(_ color: Color) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.backdropColor = color
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Enable or disable dismiss on backdrop tap
+    func dismissOnBackdropTap(_ enabled: Bool) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.dismissOnBackdropTap = enabled
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    // MARK: - Menu Layout
+    
+    /// Set the menu alignment when expanded
+    func menuAlignment(_ alignment: PFABMenuAlignment) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.menuAlignment = alignment
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set horizontal padding for the expanded menu
+    func menuHorizontalPadding(_ padding: CGFloat) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.horizontalPadding = padding
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set vertical padding for the expanded menu
+    func menuVerticalPadding(top: CGFloat = 8, bottom: CGFloat = 8) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.topPadding = top
+        newConfig.bottomPadding = bottom
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set maximum width for the expanded menu
+    func menuMaxWidth(_ width: CGFloat) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.menuMaxWidth = width
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Set maximum height for the expanded menu (enables scrolling)
+    func menuMaxHeight(_ height: CGFloat) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.menuMaxHeight = height
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    // MARK: - Interaction
+    
+    /// Set the haptic feedback style
+    func haptics(_ style: PFABHapticStyle) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.hapticStyle = style
+        return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
+    }
+    
+    /// Enable or disable auto-close when menu item is tapped
+    func closeOnMenuItemTap(_ enabled: Bool) -> PExpandableFAB {
+        var newConfig = config
+        newConfig.closeOnMenuItemTap = enabled
         return PExpandableFAB(isExpanded: $isExpanded, label: label, menu: menu, detail: detail, config: newConfig)
     }
 }
@@ -358,18 +761,34 @@ public extension PExpandableFAB {
 ///     DetailView()
 /// }
 /// ```
-@available(iOS 17.0, tvOS 17.0, watchOS 10.0, *)
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 @available(macOS, unavailable, message: "PFABMenuItem is not available on macOS")
 public struct PFABMenuItem: View {
     
     @Environment(\.prettyTheme) private var theme
     @Environment(\.colorScheme) private var colorScheme
     
+    // MARK: - Properties
+    
     private let icon: String
     private let title: String
     private let description: String?
-    private let showChevron: Bool
     private let action: () -> Void
+    
+    // MARK: - Configuration
+    
+    private var showChevron: Bool = true
+    private var iconSize: CGFloat = 44
+    private var iconFont: Font = .title2
+    private var titleFont: Font = .body
+    private var descriptionFont: Font = .caption
+    private var customIconColor: Color? = nil
+    private var customIconBackground: Color? = nil
+    private var customTitleColor: Color? = nil
+    private var customDescriptionColor: Color? = nil
+    private var horizontalPadding: CGFloat = 16
+    private var verticalPadding: CGFloat = 10
+    private var spacing: CGFloat = 14
     
     private var colors: ColorTokens {
         theme.colors(for: colorScheme)
@@ -398,23 +817,24 @@ public struct PFABMenuItem: View {
     
     public var body: some View {
         Button(action: action) {
-            HStack(spacing: 14) {
+            HStack(spacing: spacing) {
                 Image(systemName: icon)
-                    .font(.title2)
-                    .frame(width: 44, height: 44)
-                    .background(colors.background, in: .circle)
-                    .foregroundStyle(colors.foreground)
+                    .font(iconFont)
+                    .frame(width: iconSize, height: iconSize)
+                    .background(customIconBackground ?? colors.background)
+                    .clipShape(Circle())
+                    .foregroundColor(customIconColor ?? colors.foreground)
                 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title)
-                        .font(.body)
-                        .foregroundStyle(colors.background)
+                        .font(titleFont)
+                        .foregroundColor(customTitleColor ?? colors.background)
                         .fontWeight(.semibold)
                     
                     if let description {
                         Text(description)
-                            .font(.caption)
-                            .foregroundStyle(colors.mutedForeground)
+                            .font(descriptionFont)
+                            .foregroundColor(customDescriptionColor ?? colors.mutedForeground)
                             .lineLimit(1)
                     }
                 }
@@ -423,20 +843,98 @@ public struct PFABMenuItem: View {
                 if showChevron {
                     Image(systemName: "chevron.right")
                         .font(.caption)
-                        .foregroundStyle(colors.mutedForeground)
+                        .foregroundColor(colors.mutedForeground)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 10)
-            .contentShape(.rect)
+            .padding(.horizontal, horizontalPadding)
+            .padding(.vertical, verticalPadding)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
     }
 }
 
+// MARK: - PFABMenuItem Modifiers
+
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
+public extension PFABMenuItem {
+    
+    /// Show or hide the chevron indicator
+    func chevron(_ show: Bool) -> PFABMenuItem {
+        var copy = self
+        copy.showChevron = show
+        return copy
+    }
+    
+    /// Set the icon size
+    func iconSize(_ size: CGFloat) -> PFABMenuItem {
+        var copy = self
+        copy.iconSize = size
+        return copy
+    }
+    
+    /// Set the icon font
+    func iconFont(_ font: Font) -> PFABMenuItem {
+        var copy = self
+        copy.iconFont = font
+        return copy
+    }
+    
+    /// Set custom icon colors
+    func iconStyle(color: Color? = nil, background: Color? = nil) -> PFABMenuItem {
+        var copy = self
+        copy.customIconColor = color
+        copy.customIconBackground = background
+        return copy
+    }
+    
+    /// Set the title font
+    func titleFont(_ font: Font) -> PFABMenuItem {
+        var copy = self
+        copy.titleFont = font
+        return copy
+    }
+    
+    /// Set custom title color
+    func titleColor(_ color: Color) -> PFABMenuItem {
+        var copy = self
+        copy.customTitleColor = color
+        return copy
+    }
+    
+    /// Set the description font
+    func descriptionFont(_ font: Font) -> PFABMenuItem {
+        var copy = self
+        copy.descriptionFont = font
+        return copy
+    }
+    
+    /// Set custom description color
+    func descriptionColor(_ color: Color) -> PFABMenuItem {
+        var copy = self
+        copy.customDescriptionColor = color
+        return copy
+    }
+    
+    /// Set padding
+    func padding(horizontal: CGFloat = 16, vertical: CGFloat = 10) -> PFABMenuItem {
+        var copy = self
+        copy.horizontalPadding = horizontal
+        copy.verticalPadding = vertical
+        return copy
+    }
+    
+    /// Set spacing between icon and text
+    func itemSpacing(_ spacing: CGFloat) -> PFABMenuItem {
+        var copy = self
+        copy.spacing = spacing
+        return copy
+    }
+}
+
 // MARK: - Convenience Initializer (No Detail View)
 
-@available(iOS 17.0, tvOS 17.0, watchOS 10.0, *)
+@available(iOS 16.0, tvOS 16.0, watchOS 9.0, *)
 @available(macOS, unavailable)
 public extension PExpandableFAB where ExpandedContent == EmptyView {
     
@@ -460,7 +958,7 @@ public extension PExpandableFAB where ExpandedContent == EmptyView {
 // MARK: - Preview
 
 #if DEBUG && os(iOS)
-@available(iOS 17.0, *)
+@available(iOS 16.0, *)
 struct PExpandableFAB_Previews: PreviewProvider {
     static var previews: some View {
         PExpandableFABPreviewContainer()
@@ -474,7 +972,7 @@ struct PExpandableFAB_Previews: PreviewProvider {
     }
 }
 
-@available(iOS 17.0, *)
+@available(iOS 16.0, *)
 private struct PExpandableFABPreviewContainer: View {
     @State private var isExpanded = false
     @State private var selectedItem = "Send"
@@ -505,14 +1003,16 @@ private struct PExpandableFABPreviewContainer: View {
                     .lineSpacing(5)
                 }
                 
-                Section("Menu Only") {
+                Section("Customization Examples") {
                     Text(
                         """
-                        **PExpandableFAB {**
-                           Image(systemName: "plus")
-                        **} menu: {**
-                           MenuContent()
-                        **}**
+                        **.appearance(.dark)**
+                        **.fabShape(.roundedSquare(cornerRadius: 16))**
+                        **.iconRotation(.degrees(45))**
+                        **.backdropBlur(10)**
+                        **.border(.blue, width: 2)**
+                        **.pressScale(0.9)**
+                        **.haptics(.heavy)**
                         """
                     )
                     .monospaced()
@@ -561,7 +1061,7 @@ private struct PExpandableFABPreviewContainer: View {
                         } label: {
                             Image(systemName: "xmark.circle.fill")
                                 .font(.title)
-                                .foregroundStyle(colors.mutedForeground)
+                                .foregroundColor(colors.mutedForeground)
                         }
                     }
                     .padding(.horizontal, 20)
@@ -572,7 +1072,7 @@ private struct PExpandableFABPreviewContainer: View {
                                 selectedItem == "Swap" ? "arrow.trianglehead.2.counterclockwise.circle.fill" :
                                 selectedItem == "Receive" ? "arrow.down.circle.fill" : "qrcode.viewfinder")
                             .font(.system(size: 64))
-                            .foregroundStyle(colors.primary)
+                            .foregroundColor(colors.primary)
                             .padding(.top, 40)
                         
                         Text("This is the \(selectedItem) view")
@@ -580,7 +1080,7 @@ private struct PExpandableFABPreviewContainer: View {
                         
                         Text("Here you would see the full interface for the \(selectedItem.lowercased()) action.")
                             .font(.subheadline)
-                            .foregroundStyle(colors.mutedForeground)
+                            .foregroundColor(colors.mutedForeground)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 32)
                         
@@ -591,7 +1091,7 @@ private struct PExpandableFABPreviewContainer: View {
                         } label: {
                             Text("Continue")
                                 .font(.headline)
-                                .foregroundStyle(colors.primaryForeground)
+                                .foregroundColor(colors.primaryForeground)
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 16)
                                 .background(colors.primary)
@@ -601,11 +1101,13 @@ private struct PExpandableFABPreviewContainer: View {
                         .padding(.bottom, 20)
                     }
                 }
-                .foregroundStyle(colors.background)
+                .foregroundColor(colors.background)
             }
+            .appearance(.light)
+            .iconRotation(.degrees(45))
+            .backdropOpacity(0.4)
             .padding(15)
         }
     }
 }
 #endif
-
