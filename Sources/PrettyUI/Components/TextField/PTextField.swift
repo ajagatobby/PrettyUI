@@ -196,7 +196,7 @@ public struct PTextField: View {
         }
         .opacity(isFieldDisabled ? 0.6 : 1)
         .animation(springAnimation, value: isFieldDisabled)
-        .onChange(of: text) { _, newValue in
+        .onChange(of: text) { newValue in
             // Enforce max length if set
             if let maxLength = config.maxLength, newValue.count > maxLength {
                 text = String(newValue.prefix(maxLength))
