@@ -34,6 +34,7 @@ public struct PTextFieldConfiguration {
     var floatingLabel: Bool = true
     var showClearButton: Bool = true
     var maxCharacters: Int? = nil
+    var maxLength: Int? = nil
     var leadingIcon: String? = nil
     var trailingIcon: String? = nil
     var errorMessage: String? = nil
@@ -195,6 +196,12 @@ public struct PTextField: View {
         }
         .opacity(isFieldDisabled ? 0.6 : 1)
         .animation(springAnimation, value: isFieldDisabled)
+        .onChange(of: text) { _, newValue in
+            // Enforce max length if set
+            if let maxLength = config.maxLength, newValue.count > maxLength {
+                text = String(newValue.prefix(maxLength))
+            }
+        }
     }
     
     // MARK: - Field Container
@@ -631,10 +638,27 @@ public extension PTextField {
         return PTextField(label: label, text: $text, config: newConfig, onSubmit: onSubmit)
     }
     
-    /// Set maximum character limit with counter
+    /// Set maximum character limit with counter (display only)
     func maxCharacters(_ limit: Int) -> PTextField {
         var newConfig = config
         newConfig.maxCharacters = limit
+        return PTextField(label: label, text: $text, config: newConfig, onSubmit: onSubmit)
+    }
+    
+    /// Set maximum input length (enforces limit, truncates input)
+    func maxLength(_ limit: Int) -> PTextField {
+        var newConfig = config
+        newConfig.maxLength = limit
+        return PTextField(label: label, text: $text, config: newConfig, onSubmit: onSubmit)
+    }
+    
+    /// Set maximum character limit with counter and enforce the limit
+    func maxCharacters(_ limit: Int, enforced: Bool) -> PTextField {
+        var newConfig = config
+        newConfig.maxCharacters = limit
+        if enforced {
+            newConfig.maxLength = limit
+        }
         return PTextField(label: label, text: $text, config: newConfig, onSubmit: onSubmit)
     }
     
