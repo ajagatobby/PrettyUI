@@ -40,6 +40,7 @@ public struct PTextFieldConfiguration {
     var helperText: String? = nil
     var successMessage: String? = nil
     var isDisabled: Bool = false
+    var textAlignment: TextAlignment = .leading
     #if os(iOS) || os(tvOS)
     var autocapitalization: TextInputAutocapitalization = .sentences
     var keyboardType: UIKeyboardType = .default
@@ -259,18 +260,18 @@ public struct PTextField: View {
     
     @ViewBuilder
     private var textInputArea: some View {
-        ZStack(alignment: .leading) {
+        ZStack(alignment: textInputAlignment) {
             // Floating label
             if config.floatingLabel {
                 floatingLabelView
             }
             
             // Actual text field
-                Group {
+            Group {
                 if config.isSecure && !isSecureTextVisible {
                     SecureField(config.floatingLabel ? "" : label, text: $text)
                         .onSubmit { onSubmit?() }
-                    } else {
+                } else {
                     TextField(config.floatingLabel ? "" : label, text: $text)
                         #if os(iOS) || os(tvOS)
                         .textInputAutocapitalization(config.autocapitalization)
@@ -278,14 +279,23 @@ public struct PTextField: View {
                         #endif
                         .submitLabel(config.submitLabel)
                         .onSubmit { onSubmit?() }
-                    }
                 }
+            }
+            .multilineTextAlignment(config.textAlignment)
             .focused($isFocused)
             .font(.system(size: fontSize, weight: .regular))
             .foregroundColor(config.customForegroundColor ?? colors.foreground)
             .tint(config.customFocusColor ?? colors.primary)
             .offset(y: config.floatingLabel && isFloating ? 6 : 0)
             .animation(floatAnimation, value: isFloating)
+        }
+    }
+    
+    private var textInputAlignment: Alignment {
+        switch config.textAlignment {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
         }
     }
     
@@ -296,10 +306,27 @@ public struct PTextField: View {
         Text(label)
             .font(.system(size: isFloating ? floatingLabelSize : fontSize, weight: isFloating ? .medium : .regular))
             .foregroundColor(floatingLabelColor)
+            .frame(maxWidth: .infinity, alignment: floatingLabelFrameAlignment)
             .offset(y: isFloating ? -floatingLabelOffset : 0)
-            .scaleEffect(isFloating ? 0.85 : 1, anchor: .leading)
+            .scaleEffect(isFloating ? 0.85 : 1, anchor: floatingLabelScaleAnchor)
             .animation(floatAnimation, value: isFloating)
             .allowsHitTesting(false)
+    }
+    
+    private var floatingLabelScaleAnchor: UnitPoint {
+        switch config.textAlignment {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        }
+    }
+    
+    private var floatingLabelFrameAlignment: Alignment {
+        switch config.textAlignment {
+        case .leading: return .leading
+        case .center: return .center
+        case .trailing: return .trailing
+        }
     }
     
     private var floatingLabelColor: Color {
@@ -650,6 +677,13 @@ public extension PTextField {
     func disabled(_ isDisabled: Bool = true) -> PTextField {
         var newConfig = config
         newConfig.isDisabled = isDisabled
+        return PTextField(label: label, text: $text, config: newConfig, onSubmit: onSubmit)
+    }
+    
+    /// Set text alignment (leading, center, or trailing)
+    func textAlignment(_ alignment: TextAlignment) -> PTextField {
+        var newConfig = config
+        newConfig.textAlignment = alignment
         return PTextField(label: label, text: $text, config: newConfig, onSubmit: onSubmit)
     }
     
